@@ -73,8 +73,8 @@ class DesignersBloc extends Bloc<DesignersEvent, DesignersState> {
 // import 'package:http/http.dart' as http;
 //
 //
-// part 'new_in_event.dart';
-// part 'new_in_state.dart';
+// part 'new_in_theme_event.dart';
+// part 'new_in_theme_state.dart';
 //
 // class DesignersBloc extends Bloc<DesignersEvent, DesignersState> {
 //   DesignersBloc() : super(DesignersLoading()) {
@@ -118,7 +118,7 @@ Future<void> _onFetchDesigners(
   emit(DesignersLoading());
 
   final url = Uri.parse(
-      "$ApiConstants.");
+      ApiConstants.designers);
 
   try {
     HttpClient httpClient = HttpClient();

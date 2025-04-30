@@ -16,9 +16,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aashni_app/features/newin/bloc/new_in_bloc.dart';
 import '../../designer/bloc/designers_screen.dart';
 import '../../newin/view/new_in_screen.dart';
+import 'offer_pop_up.dart';
 
 class AuthScreen extends ConsumerWidget {
-  const AuthScreen({Key? key}) : super(key: key);
+  final int initialTabindex;
+
+  const AuthScreen({Key? key, this.initialTabindex=0}) : super(key: key);
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,75 +30,59 @@ class AuthScreen extends ConsumerWidget {
 
     return DefaultTabController(
       length: 4,
+      initialIndex: initialTabindex,
       child: Scaffold(
         appBar: AppBar(
-          title: Image.asset(
-            'assets/logo.jpeg', // Replace with your image path
-            height: 30, // Adjust height as needed
-          ),
+          title: Image.asset('assets/logo.jpeg', height: 30),
           elevation: 0,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
-          bottom: TabBar(
-            labelColor: Colors.black,
-            indicatorColor: Colors.black,
-            unselectedLabelColor: Colors.grey,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 0),
-            tabs: const [
-              Tab(
-                child: Text(
-                  "Exclusives",
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                double screenWidth = constraints.maxWidth;
+                double fontSize = screenWidth > 360 ? 12 : 10;
 
-              Tab(
-                child: Text(
-                  "New In",
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-              Tab(
-                child: Text(
-                  "Categories",
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-              // Tab(
-              //   child: Text(
-              //     "Accessories",
-              //     style: TextStyle(fontSize: 14),
-              //   ),
-              // ),
-              Tab(
-                child: Text(
-                  "Designers",
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-            ],
+                return TabBar(
+                  labelColor: Colors.black,
+                  indicatorColor: Colors.black,
+                  unselectedLabelColor: Colors.grey,
+                  tabs: const [
+                    "Exclusives",
+                    "New In",
+                    "Categories",
+                    "Designers"
+                  ].map((tab) {
+                    return Tab(
+                      child: Text(
+                        tab,
+                        style: TextStyle(fontSize: fontSize),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ),
           actions: [
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () {
-                  showDialog(
+                showDialog(
                   context: context,
-                  builder: (BuildContext context) => const SearchScreen(),
+                  builder: (context) => const SearchScreen(),
                 );
-                print("Search clicked");
               },
             ),
             IconButton(
               icon: const Icon(Icons.shopping_bag_rounded),
               onPressed: () {
-                print("Shopping bag clicked");
-                     Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ShoppingBagScreen(),
-                ),
-              );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
+                );
               },
             ),
           ],
@@ -102,21 +90,35 @@ class AuthScreen extends ConsumerWidget {
         body: authState.isLoading
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
-                children: [
-                  // Home content reused here
-                  HomeScreen(),
-                  NewInScreen(selectedCategories: []),
-                  // NewInScreen(),
-                  // NewIn(),// Reuse the Home content in the Exclusive tab
-                  CategoriesPage(),
-// CategoriesScreen1(),
-                  // _buildTabContent("Categories Content"),
-                  // _buildTabContent("Accessories Content"),
-                  // Accessories(),
-                  // _buildTabContent("Designers Content"),
-                  DesignersScreen()
-                ],
-              ),
+          children: [
+            HomeScreen(),
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "New In",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: NewInScreen(selectedCategories: []),
+                ),
+              ],
+            ),
+            CategoriesPage(),
+            DesignersScreen(),
+          ],
+        ),
         bottomNavigationBar: BottomNavigationBar(
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
@@ -129,21 +131,21 @@ class AuthScreen extends ConsumerWidget {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const AuthScreen()),
-                  (Route<dynamic> route) => false,
+                      (route) => false,
                 );
                 break;
               case 1:
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const WishlistScreen()),
-                  (Route<dynamic> route) => false,
+                      (route) => false,
                 );
-                break;             
+                break;
               case 2:
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const AccountScreen()),
-                  (Route<dynamic> route) => false,
+                      (route) => false,
                 );
                 break;
             }
@@ -152,6 +154,138 @@ class AuthScreen extends ConsumerWidget {
       ),
     );
   }
+
+  //   Widget build(BuildContext context, WidgetRef ref) {
+  //     final authState = ref.watch(authViewModelProvider);
+  //
+  //     return DefaultTabController(
+  //       length: 4,
+  //       child: Scaffold(
+  //         appBar: AppBar(
+  //           title: Image.asset(
+  //             'assets/logo.jpeg', // Replace with your image path
+  //             height: 30, // Adjust height as needed
+  //           ),
+  //           elevation: 0,
+  //           backgroundColor: Colors.white,
+  //           foregroundColor: Colors.black,
+  //           bottom: TabBar(
+  //             labelColor: Colors.black,
+  //             indicatorColor: Colors.black,
+  //             unselectedLabelColor: Colors.grey,
+  //             labelPadding: const EdgeInsets.symmetric(horizontal: 0),
+  //             tabs: const [
+  //               Tab(
+  //                 child: Text(
+  //                   "Exclusives",
+  //                   style: TextStyle(fontSize: 12),
+  //                 ),
+  //               ),
+  //
+  //               Tab(
+  //                 child: Text(
+  //                   "New In",
+  //                   style: TextStyle(fontSize: 12),
+  //                 ),
+  //               ),
+  //               Tab(
+  //                 child: Text(
+  //                   "Categories",
+  //                   style: TextStyle(fontSize: 12),
+  //                 ),
+  //               ),
+  //               // Tab(
+  //               //   child: Text(
+  //               //     "Accessories",
+  //               //     style: TextStyle(fontSize: 14),
+  //               //   ),
+  //               // ),
+  //               Tab(
+  //                 child: Text(
+  //                   "Designers",
+  //                   style: TextStyle(fontSize: 12),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //           actions: [
+  //             IconButton(
+  //               icon: const Icon(Icons.search),
+  //               onPressed: () {
+  //                   showDialog(
+  //                   context: context,
+  //                   builder: (BuildContext context) => const SearchScreen(),
+  //                 );
+  //                 print("Search clicked");
+  //               },
+  //             ),
+  //             IconButton(
+  //               icon: const Icon(Icons.shopping_bag_rounded),
+  //               onPressed: () {
+  //                 print("Shopping bag clicked");
+  //                      Navigator.push(
+  //                 context,
+  //                 MaterialPageRoute(
+  //                   builder: (context) => ShoppingBagScreen(),
+  //                 ),
+  //               );
+  //               },
+  //             ),
+  //           ],
+  //         ),
+  //         body: authState.isLoading
+  //             ? const Center(child: CircularProgressIndicator())
+  //             : TabBarView(
+  //                 children: [
+  //                   // Home content reused here
+  //                   HomeScreen(),
+  //                   NewInScreen(selectedCategories: []),
+  //                   // NewInScreen(),
+  //                   // NewIn(),// Reuse the Home content in the Exclusive tab
+  //                   CategoriesPage(),
+  // // CategoriesScreen1(),
+  //                   // _buildTabContent("Categories Content"),
+  //                   // _buildTabContent("Accessories Content"),
+  //                   // Accessories(),
+  //                   // _buildTabContent("Designers Content"),
+  //                   DesignersScreen()
+  //                 ],
+  //               ),
+  //         bottomNavigationBar: BottomNavigationBar(
+  //           items: const [
+  //             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+  //             BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
+  //             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
+  //           ],
+  //           onTap: (index) {
+  //             switch (index) {
+  //               case 0:
+  //                 Navigator.pushAndRemoveUntil(
+  //                   context,
+  //                   MaterialPageRoute(builder: (context) => const AuthScreen()),
+  //                   (Route<dynamic> route) => false,
+  //                 );
+  //                 break;
+  //               case 1:
+  //                 Navigator.pushAndRemoveUntil(
+  //                   context,
+  //                   MaterialPageRoute(builder: (context) => const WishlistScreen()),
+  //                   (Route<dynamic> route) => false,
+  //                 );
+  //                 break;
+  //               case 2:
+  //                 Navigator.pushAndRemoveUntil(
+  //                   context,
+  //                   MaterialPageRoute(builder: (context) => const AccountScreen()),
+  //                   (Route<dynamic> route) => false,
+  //                 );
+  //                 break;
+  //             }
+  //           },
+  //         ),
+  //       ),
+  //     );
+  //   }
 
   Widget _buildTabContent(String text) {
     return Center(
@@ -324,7 +458,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _startAutoSlideShopByOccassion();
     _startAutoSlideACOEdit();
     _startAutoSlideBannerSpe();
-
+    Future.delayed(Duration(seconds: 4), () {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => OfferPopup(onClose: () {
+          Navigator.pop(context);
+        }),
+      );
+    });
 
   }
 

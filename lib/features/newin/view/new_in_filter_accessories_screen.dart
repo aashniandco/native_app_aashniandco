@@ -1,3 +1,4 @@
+
 import 'dart:async';
 
 import 'package:aashni_app/common/dialog.dart';
@@ -5,6 +6,7 @@ import 'package:aashni_app/features/auth/view/auth_screen.dart';
 import 'package:aashni_app/features/auth/view/login_screen.dart';
 import 'package:aashni_app/features/newin/view/new_in_filter_accessories_screen.dart';
 import 'package:aashni_app/features/designer/bloc/designers_screen.dart';
+import 'package:aashni_app/features/newin/view/product_card.dart';
 import 'package:aashni_app/features/shoppingbag/shopping_bag.dart';
 import 'package:flutter/material.dart';
 
@@ -19,6 +21,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/new_in_accessories_bloc.dart';
 import '../bloc/new_in_accessories_event.dart';
 import '../bloc/new_in_accessories_state.dart';
+import '../model/new_in_model.dart';
+import 'filtered_product_tab_screen.dart';
 
 class NewInFilterAccessoriesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> selectedCategories;
@@ -26,258 +30,318 @@ class NewInFilterAccessoriesScreen extends StatelessWidget {
   const NewInFilterAccessoriesScreen({super.key, required this.selectedCategories});
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final selectedText = selectedCategories.isNotEmpty
-        ? selectedCategories[0]["category"]
-        : "No Category Selected";
+    return FilteredProductTabScreen(
+      selectedCategories: selectedCategories,
+      initialTab: "New In",
+      productListBuilder: (selectedCategory, selectedSort) {
+        return BlocProvider(
+          create: (_) => NewInAccessoriesBloc()..add(FetchNewInAccessories()),
+          child: BlocBuilder<NewInAccessoriesBloc, NewInAccessoriesState>(
+            builder: (context, state) {
+              if (state is NewInAccessoriesLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is NewInAccessoriesLoaded) {
+                /// Sort products here based on selectedSort
+                List<Product> products = List.from(state.products);
 
-    return DefaultTabController(
-      length: 4,
-      initialIndex: 1,
-      child: BlocProvider(
-        create: (_) => NewInAccessoriesBloc()..add(FetchNewInAccessories()),
-        child: Scaffold(
-          appBar: AppBar(
-            title: Image.asset(
-              'assets/logo.jpeg',
-              height: 30,
-            ),
-            elevation: 0,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            bottom: const TabBar(
-              labelColor: Colors.black,
-              indicatorColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
-              labelPadding: EdgeInsets.symmetric(horizontal: 0),
-              tabs: [
-                Tab(child: Text("Exclusives", style: TextStyle(fontSize: 14))),
-                Tab(child: Text("New In", style: TextStyle(fontSize: 14))),
-                Tab(child: Text("Categories", style: TextStyle(fontSize: 14))),
-                Tab(child: Text("Designers", style: TextStyle(fontSize: 14))),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) => const SearchScreen(),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.shopping_bag_rounded),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: TabBarView(
-            children: [
-              // 1. Exclusives
-              HomeScreen(),
+                if (selectedSort == 'High to Low') {
+                  products.sort((a, b) => b.actualPrice.compareTo(a.actualPrice));
+                } else if (selectedSort == 'Low to High') {
+                  products.sort((a, b) => a.actualPrice.compareTo(b.actualPrice));
+                }
 
-              // 2. New In Accessories with filter applied
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "Filtered by: $selectedText",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const NewInFilterAccessoriesScreen(
-                                  selectedCategories: [],
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text("Clear Filter"),
-                        )
-                      ],
-                    ),
+                if (products.isEmpty) {
+                  return const Center(child: Text("No products found"));
+                }
+
+                return GridView.builder(
+                  itemCount: products.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.55,
                   ),
-                  Expanded(
-                    child: BlocBuilder<NewInAccessoriesBloc, NewInAccessoriesState>(
-                      builder: (context, state) {
-                        if (state is NewInAccessoriesLoading) {
-                          return const Center(child: CircularProgressIndicator());
-                        } else if (state is NewInAccessoriesLoaded) {
-                          final products = state.products;
-                          if (products.isEmpty) {
-                            return const Center(child: Text('No products found.'));
-                          }
-                          return
-
-
-
-
-                            GridView.builder(
-                            itemCount: products.length,
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: 0.55,
-                              ),
-
-                              itemBuilder: (context, index) {
-                              final product = products[index];
-                              // return Card(
-                              //   margin: const EdgeInsets.all(8),
-                              //   child: ListTile(
-                              //     leading: Image.network(
-                              //       product.prodSmallImg,
-                              //       width: 50,
-                              //       height: 50,
-                              //       fit: BoxFit.cover,
-                              //       errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
-                              //     ),
-                              //     title: Text(product.designerName),
-                              //     subtitle: Text(product.shortDesc),
-                              //     trailing: Text("£${product.actualPrice.toStringAsFixed(2)}"),
-                              //   ),
-                              // );
-
-                              return Card(
-                                color: Colors.white,
-                                elevation: 1,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Flexible(
-                                      child: Image.network(
-                                        product.prodSmallImg,
-                                        width: double.infinity,
-                                        height: 550,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            height: 550,
-                                            color: Colors.grey[300],
-                                            alignment: Alignment.center,
-                                            child: const Icon(Icons.image_not_supported, size: 50),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                      child: Center(
-                                        child: Text(
-                                          product.designerName,
-                                          style: AppTextStyle.designerName,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                      child: Center(
-                                        child: Text(
-                                          product.shortDesc,
-                                          textAlign: TextAlign.center,
-                                          style: AppTextStyle.shortDescription,
-
-
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                      child: Center(
-                                        child: Text(
-                                          "₹${product.actualPrice.toStringAsFixed(0)}",
-                                          style: AppTextStyle.actualPrice,
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-
-                              },
-                          );
-                        } else if (state is NewInAccessoriesError) {
-                          return Center(child: Text(state.message));
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-
-              // 3. Categories
-              CategoriesPage(),
-
-              // 4. Designers
-              DesignersScreen(),
-            ],
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-              BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
-              BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
-            ],
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AuthScreen()),
-                        (Route<dynamic> route) => false,
-                  );
-                  break;
-                case 1:
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const WishlistScreen()),
-                        (Route<dynamic> route) => false,
-                  );
-                  break;
-                case 2:
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AccountScreen()),
-                        (Route<dynamic> route) => false,
-                  );
-                  break;
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return ProductCard(product: product);
+                  },
+                );
+              } else if (state is NewInAccessoriesError) {
+                return Center(child: Text(state.message));
+              } else {
+                return const SizedBox.shrink();
               }
             },
           ),
-        ),
-      ),
+        );
+      },
     );
   }
+
 }
+
+
+// class NewInFilterAccessoriesScreen extends StatelessWidget {
+//   final List<Map<String, dynamic>> selectedCategories;
+//
+//   const NewInFilterAccessoriesScreen({super.key, required this.selectedCategories});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     final selectedText = selectedCategories.isNotEmpty
+//         ? selectedCategories[0]["category"]
+//         : "No Category Selected";
+//
+//     return DefaultTabController(
+//       length: 4,
+//       initialIndex: 1,
+//       child: BlocProvider(
+//         create: (_) => NewInAccessoriesBloc()..add(FetchNewInAccessories()),
+//         child: Scaffold(
+//           appBar: AppBar(
+//             title: Image.asset(
+//               'assets/logo.jpeg',
+//               height: 30,
+//             ),
+//             elevation: 0,
+//             backgroundColor: Colors.white,
+//             foregroundColor: Colors.black,
+//             bottom: const TabBar(
+//               labelColor: Colors.black,
+//               indicatorColor: Colors.black,
+//               unselectedLabelColor: Colors.grey,
+//               labelPadding: EdgeInsets.symmetric(horizontal: 0),
+//               tabs: [
+//                 Tab(child: Text("Exclusives", style: TextStyle(fontSize: 14))),
+//                 Tab(child: Text("New In", style: TextStyle(fontSize: 14))),
+//                 Tab(child: Text("Categories", style: TextStyle(fontSize: 14))),
+//                 Tab(child: Text("Designers", style: TextStyle(fontSize: 14))),
+//               ],
+//             ),
+//             actions: [
+//               IconButton(
+//                 icon: const Icon(Icons.search),
+//                 onPressed: () {
+//                   showDialog(
+//                     context: context,
+//                     builder: (BuildContext context) => const SearchScreen(),
+//                   );
+//                 },
+//               ),
+//               IconButton(
+//                 icon: const Icon(Icons.shopping_bag_rounded),
+//                 onPressed: () {
+//                   Navigator.push(
+//                     context,
+//                     MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
+//                   );
+//                 },
+//               ),
+//             ],
+//           ),
+//           body: TabBarView(
+//             children: [
+//               // 1. Exclusives
+//               HomeScreen(),
+//
+//               // 2. New In Accessories with filter applied
+//               Column(
+//                 children: [
+//                   Padding(
+//                     padding: const EdgeInsets.all(12.0),
+//                     child: Row(
+//                       children: [
+//                         Expanded(
+//                           child: Text(
+//                             "Filtered by: $selectedText",
+//                             style: const TextStyle(
+//                               fontSize: 16,
+//                               fontWeight: FontWeight.bold,
+//                             ),
+//                           ),
+//                         ),
+//                         TextButton(
+//                           onPressed: () {
+//                             Navigator.pushReplacement(
+//                               context,
+//                               MaterialPageRoute(
+//                                 builder: (_) => const NewInFilterAccessoriesScreen(
+//                                   selectedCategories: [],
+//                                 ),
+//                               ),
+//                             );
+//                           },
+//                           child: const Text("Clear Filter"),
+//                         )
+//                       ],
+//                     ),
+//                   ),
+//                   Expanded(
+//                     child: BlocBuilder<NewInAccessoriesBloc, NewInAccessoriesState>(
+//                       builder: (context, state) {
+//                         if (state is NewInAccessoriesLoading) {
+//                           return const Center(child: CircularProgressIndicator());
+//                         } else if (state is NewInAccessoriesLoaded) {
+//                           final products = state.products;
+//                           if (products.isEmpty) {
+//                             return const Center(child: Text('No products found.'));
+//                           }
+//                           return
+//
+//
+//
+//
+//                             GridView.builder(
+//                             itemCount: products.length,
+//                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+//                                 crossAxisCount: 2,
+//                                 crossAxisSpacing: 10,
+//                                 mainAxisSpacing: 10,
+//                                 childAspectRatio: 0.55,
+//                               ),
+//
+//                               itemBuilder: (context, index) {
+//                               final product = products[index];
+//                               // return Card(
+//                               //   margin: const EdgeInsets.all(8),
+//                               //   child: ListTile(
+//                               //     leading: Image.network(
+//                               //       product.prodSmallImg,
+//                               //       width: 50,
+//                               //       height: 50,
+//                               //       fit: BoxFit.cover,
+//                               //       errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
+//                               //     ),
+//                               //     title: Text(product.designerName),
+//                               //     subtitle: Text(product.shortDesc),
+//                               //     trailing: Text("£${product.actualPrice.toStringAsFixed(2)}"),
+//                               //   ),
+//                               // );
+//
+//                               return Card(
+//                                 color: Colors.white,
+//                                 elevation: 1,
+//                                 child: Column(
+//                                   crossAxisAlignment: CrossAxisAlignment.start,
+//                                   children: [
+//                                     Flexible(
+//                                       child: Image.network(
+//                                         product.prodSmallImg,
+//                                         width: double.infinity,
+//                                         height: 550,
+//                                         fit: BoxFit.cover,
+//                                         errorBuilder: (context, error, stackTrace) {
+//                                           return Container(
+//                                             height: 550,
+//                                             color: Colors.grey[300],
+//                                             alignment: Alignment.center,
+//                                             child: const Icon(Icons.image_not_supported, size: 50),
+//                                           );
+//                                         },
+//                                       ),
+//                                     ),
+//                                     const SizedBox(height: 8),
+//                                     Padding(
+//                                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+//                                       child: Center(
+//                                         child: Text(
+//                                           product.designerName,
+//                                           style: AppTextStyle.designerName,
+//                                           textAlign: TextAlign.center,
+//                                           maxLines: 1,
+//                                           overflow: TextOverflow.ellipsis,
+//                                         ),
+//                                       ),
+//                                     ),
+//                                     Padding(
+//                                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
+//                                       child: Center(
+//                                         child: Text(
+//                                           product.shortDesc,
+//                                           textAlign: TextAlign.center,
+//                                           style: AppTextStyle.shortDescription,
+//
+//
+//                                           maxLines: 2,
+//                                           overflow: TextOverflow.ellipsis,
+//                                         ),
+//                                       ),
+//                                     ),
+//                                     Padding(
+//                                       padding: const EdgeInsets.symmetric(vertical: 8.0),
+//                                       child: Center(
+//                                         child: Text(
+//                                           "₹${product.actualPrice.toStringAsFixed(0)}",
+//                                           style: AppTextStyle.actualPrice,
+//                                           textAlign: TextAlign.center,
+//                                         ),
+//                                       ),
+//                                     ),
+//                                   ],
+//                                 ),
+//                               );
+//
+//
+//                               },
+//                           );
+//                         } else if (state is NewInAccessoriesError) {
+//                           return Center(child: Text(state.message));
+//                         } else {
+//                           return const SizedBox.shrink();
+//                         }
+//                       },
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//
+//               // 3. Categories
+//               CategoriesPage(),
+//
+//               // 4. Designers
+//               DesignersScreen(),
+//             ],
+//           ),
+//           bottomNavigationBar: BottomNavigationBar(
+//             items: const [
+//               BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+//               BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
+//               BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
+//             ],
+//             onTap: (index) {
+//               switch (index) {
+//                 case 0:
+//                   Navigator.pushAndRemoveUntil(
+//                     context,
+//                     MaterialPageRoute(builder: (context) => const AuthScreen()),
+//                         (Route<dynamic> route) => false,
+//                   );
+//                   break;
+//                 case 1:
+//                   Navigator.pushAndRemoveUntil(
+//                     context,
+//                     MaterialPageRoute(builder: (context) => const WishlistScreen()),
+//                         (Route<dynamic> route) => false,
+//                   );
+//                   break;
+//                 case 2:
+//                   Navigator.pushAndRemoveUntil(
+//                     context,
+//                     MaterialPageRoute(builder: (context) => const AccountScreen()),
+//                         (Route<dynamic> route) => false,
+//                   );
+//                   break;
+//               }
+//             },
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 
 

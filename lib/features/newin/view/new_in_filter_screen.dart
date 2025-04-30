@@ -14,6 +14,8 @@ import '../../auth/view/wishlist_screen.dart';
 import '../../categories/view/categories_screen.dart';
 import '../../designer/bloc/designers_screen.dart';
 import '../../shoppingbag/shopping_bag.dart';
+import '../bloc/new_in_accessories_bloc.dart';
+import '../bloc/new_in_accessories_state.dart';
 import 'filter_bottom_sheet.dart';
 import '../bloc/new_in_state.dart';
 
@@ -23,154 +25,221 @@ import 'package:flutter/material.dart';
 
 import 'new_in_screen.dart'; // For NewInScreen
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'filtered_product_tab_screen.dart';
+// Make sure your BLoC is imported correctly
+import 'product_card.dart'; // The reusable product card widget
+
 class NewInFilterScreen extends StatelessWidget {
   final List<Map<String, dynamic>> selectedCategories;
 
   const NewInFilterScreen({super.key, required this.selectedCategories});
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final selectedText = selectedCategories.isNotEmpty
-        ? selectedCategories[0]["category"]
-        : "No Category Selected";
+    return FilteredProductTabScreen(
+      selectedCategories: selectedCategories,
+      initialTab: "New In",
+      productListBuilder: (selectedCategory, selectedSort) {
+        return BlocProvider(
+          create: (_) => NewInBloc()..add(FetchNewIn()),
+          child: BlocBuilder<NewInBloc, NewInState>(
+            builder: (context, state) {
+              if (state is NewInLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is NewInLoaded) {
+                /// Sort products here based on selectedSort
+                List<Product> products = List.from(state.products);
 
-    final bool isLoading = false; // Replace with your real authState check
+                if (selectedSort == 'High to Low') {
+                  products.sort((a, b) => b.actualPrice.compareTo(a.actualPrice));
+                } else if (selectedSort == 'Low to High') {
+                  products.sort((a, b) => a.actualPrice.compareTo(b.actualPrice));
+                }
 
-    return DefaultTabController(
-      length: 4,
-      initialIndex: 1,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Image.asset(
-            'assets/logo.jpeg',
-            height: 30,
+                if (products.isEmpty) {
+                  return const Center(child: Text("No products found"));
+                }
+
+                return GridView.builder(
+                  itemCount: products.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.55,
+                  ),
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return ProductCard(product: product);
+                  },
+                );
+              } else if (state is NewInError) {
+                return Center(child: Text(state.message));
+              } else {
+                return const SizedBox.shrink();
+              }
+            },
           ),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          bottom: const TabBar(
-            labelColor: Colors.black,
-            indicatorColor: Colors.black,
-            unselectedLabelColor: Colors.grey,
-            labelPadding: EdgeInsets.symmetric(horizontal: 0),
-            tabs: [
-              Tab(child: Text("Exclusives", style: TextStyle(fontSize: 14))),
-              Tab(child: Text("New In", style: TextStyle(fontSize: 14))),
-              Tab(child: Text("Categories", style: TextStyle(fontSize: 14))),
-              Tab(child: Text("Designers", style: TextStyle(fontSize: 14))),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) => const SearchScreen(),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.shopping_bag_rounded),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ShoppingBagScreen(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-          children: [
-            // 1. Exclusives tab
-            HomeScreen(),
-
-            // 2. New In tab with selected filter applied
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "Filtered by: $selectedText",
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const NewInScreen(selectedCategories: []),
-                            ),
-                          );
-                        },
-                        child: const Text("Clear Filter"),
-                      )
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: NewInScreen(
-                    selectedCategories: selectedCategories,
-                  ),
-                ),
-              ],
-            ),
-
-            // 3. Categories tab
-            CategoriesPage(),
-
-            // 4. Designers tab
-            DesignersScreen(),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
-          ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
-                      (Route<dynamic> route) => false,
-                );
-                break;
-              case 1:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WishlistScreen()),
-                      (Route<dynamic> route) => false,
-                );
-                break;
-              case 2:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AccountScreen()),
-                      (Route<dynamic> route) => false,
-                );
-                break;
-            }
-          },
-        ),
-      ),
+        );
+      },
     );
   }
+
+
 }
+
+
+// class NewInFilterScreen extends StatelessWidget {
+//   final List<Map<String, dynamic>> selectedCategories;
+//
+//   const NewInFilterScreen({super.key, required this.selectedCategories});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     final selectedText = selectedCategories.isNotEmpty
+//         ? selectedCategories[0]["category"]
+//         : "No Category Selected";
+//
+//     final bool isLoading = false; // Replace with your real authState check
+//
+//     return DefaultTabController(
+//       length: 4,
+//       initialIndex: 1,
+//       child: Scaffold(
+//         appBar: AppBar(
+//           title: Image.asset(
+//             'assets/logo.jpeg',
+//             height: 30,
+//           ),
+//           elevation: 0,
+//           backgroundColor: Colors.white,
+//           foregroundColor: Colors.black,
+//           bottom: const TabBar(
+//             labelColor: Colors.black,
+//             indicatorColor: Colors.black,
+//             unselectedLabelColor: Colors.grey,
+//             labelPadding: EdgeInsets.symmetric(horizontal: 0),
+//             tabs: [
+//               Tab(child: Text("Exclusives", style: TextStyle(fontSize: 14))),
+//               Tab(child: Text("New In", style: TextStyle(fontSize: 14))),
+//               Tab(child: Text("Categories", style: TextStyle(fontSize: 14))),
+//               Tab(child: Text("Designers", style: TextStyle(fontSize: 14))),
+//             ],
+//           ),
+//           actions: [
+//             IconButton(
+//               icon: const Icon(Icons.search),
+//               onPressed: () {
+//                 showDialog(
+//                   context: context,
+//                   builder: (BuildContext context) => const SearchScreen(),
+//                 );
+//               },
+//             ),
+//             IconButton(
+//               icon: const Icon(Icons.shopping_bag_rounded),
+//               onPressed: () {
+//                 Navigator.push(
+//                   context,
+//                   MaterialPageRoute(
+//                     builder: (context) => ShoppingBagScreen(),
+//                   ),
+//                 );
+//               },
+//             ),
+//           ],
+//         ),
+//         body: isLoading
+//             ? const Center(child: CircularProgressIndicator())
+//             : TabBarView(
+//           children: [
+//             // 1. Exclusives tab
+//             HomeScreen(),
+//
+//             // 2. New In tab with selected filter applied
+//             Column(
+//               children: [
+//                 Padding(
+//                   padding: const EdgeInsets.all(12.0),
+//                   child: Row(
+//                     children: [
+//                       Expanded(
+//                         child: Text(
+//                           "Filtered by: $selectedText",
+//                           style: const TextStyle(
+//                             fontSize: 16,
+//                             fontWeight: FontWeight.bold,
+//                           ),
+//                         ),
+//                       ),
+//                       TextButton(
+//                         onPressed: () {
+//                           Navigator.pushReplacement(
+//                             context,
+//                             MaterialPageRoute(
+//                               builder: (_) => const NewInScreen(selectedCategories: []),
+//                             ),
+//                           );
+//                         },
+//                         child: const Text("Clear Filter"),
+//                       )
+//                     ],
+//                   ),
+//                 ),
+//                 Expanded(
+//                   child: NewInScreen(
+//                     selectedCategories: selectedCategories,
+//                   ),
+//                 ),
+//               ],
+//             ),
+//
+//             // 3. Categories tab
+//             CategoriesPage(),
+//
+//             // 4. Designers tab
+//             DesignersScreen(),
+//           ],
+//         ),
+//         bottomNavigationBar: BottomNavigationBar(
+//           items: const [
+//             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+//             BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
+//             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
+//           ],
+//           onTap: (index) {
+//             switch (index) {
+//               case 0:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const AuthScreen()),
+//                       (Route<dynamic> route) => false,
+//                 );
+//                 break;
+//               case 1:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const WishlistScreen()),
+//                       (Route<dynamic> route) => false,
+//                 );
+//                 break;
+//               case 2:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const AccountScreen()),
+//                       (Route<dynamic> route) => false,
+//                 );
+//                 break;
+//             }
+//           },
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 
 // class NewInFilterScreen extends StatelessWidget {

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'menu_categories_screen.dart';  // Import the new screen that we will create
 
@@ -8,7 +9,7 @@ class CategoriesPage extends StatefulWidget {
 //https://reqres.in/api/login
 class _CategoriesPageState extends State<CategoriesPage> {
   final List<Map<String, String>> categories = [
-    {"name": "New Season", "image": "assets/Banner-3.jpeg"},
+    {"name": "New Season>>", "image": "assets/Banner-3.jpeg"},
     {"name": "Men", "image": "assets/mens1.png"},
     {"name": "Women", "image": "assets/Banner-3.jpeg"},
     {"name": "Kids", "image": "assets/kids.png"},

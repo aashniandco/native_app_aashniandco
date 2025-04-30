@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'app/app.dart';
+import 'features/newin/bloc/newin_products_bloc.dart';
 
 void main() {
 
@@ -17,7 +18,8 @@ void main() {
         providers: [
           BlocProvider(create: (context) => TextBloc()),
           BlocProvider(create: (context) => DesignersBloc()..add(FetchDesigners())),
-          BlocProvider(create: (context) => NewInBloc())
+          BlocProvider(create: (context) => NewInBloc()),
+          // BlocProvider(create: (context) => NewInProductsBloc(productRepository: productRepository, subcategory: subcategory)),
           // BlocProvider(create: (_) => NewInBloc()),
         ],
         child: const MyApp(),

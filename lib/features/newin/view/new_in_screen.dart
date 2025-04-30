@@ -2,6 +2,7 @@ import 'package:aashni_app/constants/text_styles.dart';
 import 'package:aashni_app/features/newin/bloc/new_in_bloc.dart';
 import 'package:aashni_app/features/newin/bloc/product_te.dart';
 import 'package:aashni_app/features/newin/model/new_in_model.dart';
+import 'package:aashni_app/features/newin/view/product_details_newin.dart';
 import 'package:aashni_app/features/product_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -294,70 +295,145 @@ class _NewInScreenState extends State<NewInScreen> {
                         mainAxisSpacing: 10,
                         childAspectRatio: 0.55,
                       ),
-                      itemBuilder: (context, index) {
-                        final product = sortedProducts[index];
-                        return Card(
-                          color: Colors.white,
-                          elevation: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Flexible(
-                                child: Image.network(
-                                  product.prodSmallImg,
-                                  width: double.infinity,
-                                  height: 550,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      height: 550,
-                                      color: Colors.grey[300],
-                                      alignment: Alignment.center,
-                                      child: const Icon(Icons.image_not_supported, size: 50),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Center(
-                                  child: Text(
-                                    product.designerName,
-                                    style: AppTextStyle.designerName,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Center(
-                                  child: Text(
-                                    product.shortDesc,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyle.shortDescription,
+                      // itemBuilder: (context, index) {
+                      //   final product = sortedProducts[index];
+                      //   return Card(
+                      //     color: Colors.white,
+                      //     elevation: 1,
+                      //     child: Column(
+                      //       crossAxisAlignment: CrossAxisAlignment.start,
+                      //       children: [
+                      //         Flexible(
+                      //           child: Image.network(
+                      //             product.prodSmallImg,
+                      //             width: double.infinity,
+                      //             height: 550,
+                      //             fit: BoxFit.cover,
+                      //             errorBuilder: (context, error, stackTrace) {
+                      //               return Container(
+                      //                 height: 550,
+                      //                 color: Colors.grey[300],
+                      //                 alignment: Alignment.center,
+                      //                 child: const Icon(Icons.image_not_supported, size: 50),
+                      //               );
+                      //             },
+                      //           ),
+                      //         ),
+                      //         const SizedBox(height: 8),
+                      //         Padding(
+                      //           padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      //           child: Center(
+                      //             child: Text(
+                      //               product.designerName,
+                      //               style: AppTextStyle.designerName,
+                      //               textAlign: TextAlign.center,
+                      //               maxLines: 1,
+                      //               overflow: TextOverflow.ellipsis,
+                      //             ),
+                      //           ),
+                      //         ),
+                      //         Padding(
+                      //           padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      //           child: Center(
+                      //             child: Text(
+                      //               product.shortDesc,
+                      //               textAlign: TextAlign.center,
+                      //               style: AppTextStyle.shortDescription,
+                      //
+                      //               maxLines: 2,
+                      //               overflow: TextOverflow.ellipsis,
+                      //             ),
+                      //           ),
+                      //         ),
+                      //         Padding(
+                      //           padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      //           child: Center(
+                      //             child: Text(
+                      //               "₹${product.actualPrice.toStringAsFixed(0)}",
+                      //               style: AppTextStyle.actualPrice,
+                      //               textAlign: TextAlign.center,
+                      //             ),
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   );
+                      // },
 
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                        itemBuilder: (context, index) {
+                          final product = sortedProducts[index];
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductDetailNewInDetailScreen(product: product),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Center(
-                                  child: Text(
-                                    "₹${product.actualPrice.toStringAsFixed(0)}",
-                                    style: AppTextStyle.actualPrice,
-                                    textAlign: TextAlign.center,
+                              );
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              elevation: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Flexible(
+                                    child: Image.network(
+                                      product.prodSmallImg,
+                                      width: double.infinity,
+                                      height: 550,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          height: 550,
+                                          color: Colors.grey[300],
+                                          alignment: Alignment.center,
+                                          child: const Icon(Icons.image_not_supported, size: 50),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Center(
+                                      child: Text(
+                                        product.designerName,
+                                        style: AppTextStyle.designerName,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Center(
+                                      child: Text(
+                                        product.shortDesc,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyle.shortDescription,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Center(
+                                      child: Text(
+                                        "₹${product.actualPrice.toStringAsFixed(0)}",
+                                        style: AppTextStyle.actualPrice,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      },
+                            ),
+                          );
+                        }
+
                     ),
                   ),
                 ],

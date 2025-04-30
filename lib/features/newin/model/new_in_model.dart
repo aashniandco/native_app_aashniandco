@@ -71,6 +71,9 @@ class Product {
   final String shortDesc;
 
   final String prodSmallImg;
+  // final List<String> sizeName;
+  final List<String> colorNames;  // Updated field name to reflect color names properly
+  final List<String> prodNames;
 
   Product({
     required this.designerName,
@@ -78,17 +81,44 @@ class Product {
     required this.shortDesc,
 
     required this.prodSmallImg,
+    required this.colorNames,
+    required this.prodNames,
+    // required this.sizeName
   });
 
+
+
   factory Product.fromJson(Map<String, dynamic> json) {
+    // final rawSizeName = json['size_name'];
+    //
+    // List<String> parsedSizes;
+    // if (rawSizeName is List) {
+    //   parsedSizes = List<String>.from(rawSizeName.map((e) => e.toString()));
+    // } else if (rawSizeName != null) {
+    //   parsedSizes = [rawSizeName.toString()];
+    // } else {
+    //   parsedSizes = [];
+    // }
+
     return Product(
       designerName: json['designer_name'] ?? '',
       actualPrice: (json['actual_price_1'] ?? 0).toDouble(),
       shortDesc: json['short_desc'] ?? '',
-
       prodSmallImg: json['prod_small_img'] ?? '',
+      // sizeName: parsedSizes,
+      colorNames: List<String>.from(json['color_name'] ?? []),  // Ensuring this is parsed as a List<String>
+      prodNames: List<String>.from(json['prod_name'] ?? []),
     );
   }
+
+
+// // 🆕 Add this static method
+  // static List<Product> listFromJson(Map<String, dynamic> json) {
+  //   final docs = json['response']['docs'] as List<dynamic>?; // 🔥 Magento Solr style
+  //   if (docs == null) return [];
+  //
+  //   return docs.map((doc) => Product.fromJson(doc)).toList();
+  // }
 }
 
 

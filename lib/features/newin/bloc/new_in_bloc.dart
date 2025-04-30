@@ -8,8 +8,8 @@
 // import 'package:http/io_client.dart';
 // import 'package:meta/meta.dart';
 //
-// import 'new_in_state.dart';
-// part 'new_in_event.dart';
+// import 'new_in_theme_state.dart';
+// part 'new_in_theme_event.dart';
 //
 // class NewInBloc extends Bloc<NewInEvent, NewInState> {
 //   NewInBloc() : super(NewInLoading()) {
@@ -62,6 +62,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:aashni_app/constants/api_constants.dart';
 import 'package:aashni_app/features/newin/model/new_in_model.dart';
 import 'package:bloc/bloc.dart';
 import 'package:http/http.dart' as http;
@@ -124,7 +125,7 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
       FetchNewIn event, Emitter<NewInState> emit) async {
     emit(NewInLoading());
 
-    final url = Uri.parse("https://stage.aashniandco.com/rest/V1/solr/newin");
+    final url = Uri.parse(ApiConstants.newIn);
 
     try {
       HttpClient httpClient = HttpClient();

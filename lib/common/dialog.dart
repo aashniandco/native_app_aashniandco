@@ -2,6 +2,81 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../features/newin/bloc/new_in_products_state.dart';
+import '../features/newin/bloc/newin_products_bloc.dart';
+import '../features/newin/view/product_card.dart';
+
+// class SearchScreen extends StatefulWidget {
+//   const SearchScreen({super.key});
+//
+//   @override
+//   State<SearchScreen> createState() => _SearchScreenState();
+// }
+//
+// class _SearchScreenState extends State<SearchScreen> {
+//   String searchQuery = '';
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     final bloc = context.read<NewInProductsBloc>();
+//
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: TextField(
+//           autofocus: true,
+//           decoration: const InputDecoration(
+//             hintText: 'Search products...',
+//             border: InputBorder.none,
+//           ),
+//           onChanged: (value) {
+//             setState(() {
+//               searchQuery = value;
+//             });
+//           },
+//         ),
+//         backgroundColor: Colors.white,
+//         iconTheme: const IconThemeData(color: Colors.black),
+//       ),
+//       body: BlocBuilder<NewInProductsBloc, NewInProductsState>(
+//         builder: (context, state) {
+//           if (state is NewInProductsLoading) {
+//             return const Center(child: CircularProgressIndicator());
+//           } else if (state is NewInProductsLoaded) {
+//             final filteredProducts = state.products.where((product) {
+//               return product.designerName.toLowerCase().contains(searchQuery.toLowerCase());
+//             }).toList();
+//
+//             if (filteredProducts.isEmpty) {
+//               return const Center(child: Text("No products found."));
+//             }
+//
+//             return GridView.builder(
+//               padding: const EdgeInsets.all(12),
+//               itemCount: filteredProducts.length,
+//               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+//                 crossAxisCount: 2,
+//                 mainAxisExtent: 270,
+//                 crossAxisSpacing: 10,
+//                 mainAxisSpacing: 10,
+//               ),
+//               itemBuilder: (context, index) =>
+//                   ProductCard(product: filteredProducts[index]),
+//             );
+//           } else if (state is NewInProductsError) {
+//             return Center(child: Text(state.message));
+//           }
+//           return const SizedBox.shrink();
+//         },
+//       ),
+//     );
+//   }
+// }
+
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
 

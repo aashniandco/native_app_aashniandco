@@ -1,5 +1,3 @@
-// new_in_accessories_bloc.dart
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,23 +6,26 @@ import 'package:aashni_app/constants/api_constants.dart';
 import 'package:aashni_app/features/newin/model/new_in_model.dart';
 import 'package:bloc/bloc.dart';
 import 'package:http/io_client.dart';
+import 'package:meta/meta.dart';
 
-import 'new_in_accessories_event.dart'; // ✅ Add this import
-import 'new_in_accessories_state.dart';
+import 'new_in_gender_state.dart';
+import 'new_in_theme_state.dart';
 
-class NewInAccessoriesBloc
-    extends Bloc<NewInAccessoriesEvent, NewInAccessoriesState> {
-  NewInAccessoriesBloc() : super(NewInAccessoriesLoading()) {
-    on<FetchNewInAccessories>(_onFetchNewInAccessories);
+part 'new_in_gender_event.dart'; // 👈 connects event
+
+
+class NewInGenderBloc extends Bloc<NewInGenderEvent, NewInGenderState> {
+  NewInGenderBloc() : super(NewInGenderLoading()) {
+    on<FetchNewInGender>(_onFetchNewInGender);
   }
 
-  Future<void> _onFetchNewInAccessories(
-      FetchNewInAccessories event,
-      Emitter<NewInAccessoriesState> emit,
+  Future<void> _onFetchNewInGender(
+      FetchNewInGenderevent,
+      Emitter<NewInGenderState> emit,
       ) async {
-    emit(NewInAccessoriesLoading());
+    emit(NewInGenderLoading());
 
-    final url = Uri.parse(ApiConstants.newInAccessories);
+    final url = Uri.parse(ApiConstants.newIn);
 
     try {
       HttpClient httpClient = HttpClient();
@@ -38,14 +39,16 @@ class NewInAccessoriesBloc
         final Map<String, dynamic> productData = responseList[1];
         final List<dynamic> docs = productData['docs'];
 
-        final List<Product> products = docs.map((json) => Product.fromJson(json)).toList();
 
-        emit(NewInAccessoriesLoaded(products: products));
+        final List<Product> products =
+        docs.map((json) => Product.fromJson(json)).toList();
+
+        emit(NewInGenderLoaded(products: products));
       } else {
-        emit(NewInAccessoriesError("Failed to load products"));
+        emit(NewInGenderError("Failed to load products"));
       }
     } catch (e) {
-      emit(NewInAccessoriesError("Error: $e"));
+      emit(NewInGenderError("Error: $e"));
     }
   }
 }
