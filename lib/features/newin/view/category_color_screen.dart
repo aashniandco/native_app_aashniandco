@@ -1,8 +1,11 @@
 import 'package:aashni_app/features/newin/view/category_result_tes_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../bloc/newin_products_bloc.dart';
+import '../bloc/product_repository.dart';
 import 'category_result_screen.dart';
 import 'new_in_products_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class CategoryColorScreen extends StatefulWidget {
   const CategoryColorScreen({super.key});
@@ -163,15 +166,22 @@ class _CategoryColorScreenState extends State<CategoryColorScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => NewInProductsScreen(
-                          selectedCategories: selectedColors,
-                          subcategory: selectedNames,
-                          initialTab: selectedColors.first["color"] ?? '',
-                          productListBuilder: (category, sort) {
-                            return CategoryResultScreen(
-                              selectedCategories: selectedColors,
-                            );
-                          },
+                        builder: (_) => BlocProvider(
+                          create: (_) => NewInProductsBloc(
+                            productRepository: ProductRepository(),
+                            subcategory: selectedNames,
+                            selectedCategories: selectedColors,
+                          ),
+                          child: NewInProductsScreen(
+                            selectedCategories: selectedColors,
+                            subcategory: selectedNames,
+                            initialTab: selectedColors.first["color"] ?? '',
+                            productListBuilder: (category, sort) {
+                              return CategoryResultScreen(
+                                selectedCategories: selectedColors,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     );

@@ -12,27 +12,87 @@ import 'package:http/io_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class CategoryGenderScreen extends StatefulWidget {
-  const CategoryGenderScreen({super.key});
+class CategoryPriceScreen extends StatefulWidget {
+  const CategoryPriceScreen({super.key});
 
   @override
-  State<CategoryGenderScreen> createState() => _CategoryGenderScreenState();
+  State<CategoryPriceScreen> createState() => _CategoryPriceScreenState();
 }
 
-class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
-  final List<Map<String, dynamic>> gender = [
+class _CategoryPriceScreenState extends State<CategoryPriceScreen> {
+  final List<Map<String, dynamic>> price = [
     {
-      "name": "Men",
+      "name": "Rs.11 - 50000",
       "isExpanded": false,
       "isSelected": false,
       "children": [],
     },
     {
-      "name": "Women",
+      "name": "Rs.50000 - 100000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+    {
+      "name": "Rs.100000 - 150000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+    {
+      "name": "Rs.150000 - 200000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+
+    {
+      "name": "Rs.200000 - 250000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+    {
+      "name": "Rs.250000 - 300000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+    {
+      "name": "Rs.300000 - 350000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+
+    {
+      "name": "Rs.350000 - 400000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+
+    {
+      "name": "Rs.400000 - 450000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+    {
+      "name": "Rs.450000 - 500000",
+      "isExpanded": false,
+      "isSelected": false,
+      "children": [],
+    },
+
+    {
+      "name": "Rs.50000 - 1500000",
       "isExpanded": false,
       "isSelected": false,
       "children": [],
     }
+
+
   ];
 
   // List<Map<String, dynamic>> fetchedProducts = [];
@@ -95,7 +155,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Select Gender"),
+        title: const Text("Select Price"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -104,9 +164,9 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: gender.length,
+              itemCount: price.length,
               itemBuilder: (context, index) {
-                final category = gender[index];
+                final category = price[index];
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -131,7 +191,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                             value: category["isSelected"],
                             onChanged: (bool? value) {
                               setState(() {
-                                gender[index]["isSelected"] = value!;
+                                price[index]["isSelected"] = value!;
                                 if (value) {
                                   for (var child in category["children"]) {
                                     child["isSelected"] = false;
@@ -155,7 +215,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                       initiallyExpanded: category["isExpanded"],
                       onExpansionChanged: (bool expanded) {
                         setState(() {
-                          gender[index]["isExpanded"] = expanded;
+                          price[index]["isExpanded"] = expanded;
                         });
                       },
                     ),
@@ -179,20 +239,20 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                   ),
                 ),
                 onPressed: () {
-                  List<Map<String, dynamic>> selectedGender = [];
+                  List<Map<String, dynamic>> selectedPrice = [];
 
-                  for (var cat in gender) {
+                  for (var cat in price) {
                     if (cat["isSelected"] == true) {
                       // selected.add({"theme": cat["name"], "id": null});
-                      selectedGender.add({
+                      selectedPrice.add({
                         "theme": cat["name"],
-                        "gender": cat["name"], // 👈 Add this line
+                        "price": cat["name"], // 👈 Add this line
                         "id": null,
                       });
                     }
                     for (var child in cat["children"]) {
                       if (child["isSelected"] == true) {
-                        selectedGender.add({
+                        selectedPrice.add({
                           "theme": cat["name"],
                           "subCategory": child["name"],
                           "id": child["id"]
@@ -201,9 +261,9 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                     }
                   }
 
-                  if (selectedGender.isNotEmpty) {
-                    final selectedNames = selectedGender
-                        .map((item) => item["acoedit"] ?? item["subCategory"])
+                  if (selectedPrice.isNotEmpty) {
+                    final selectedNames = selectedPrice
+                        .map((item) => item["price"] ?? item["subCategory"])
                         .join(", ");
 
                     Navigator.push(
@@ -213,15 +273,15 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                           create: (_) => NewInProductsBloc(
                             productRepository: ProductRepository(),
                             subcategory: selectedNames,
-                            selectedCategories: selectedGender,
+                            selectedCategories: selectedPrice,
                           ),
                           child: NewInProductsScreen(
-                            selectedCategories: selectedGender,
+                            selectedCategories: selectedPrice,
                             subcategory: selectedNames,
-                            initialTab: selectedGender.first["gender"] ?? '',
+                            initialTab: selectedPrice.first["price"] ?? '',
                             productListBuilder: (category, sort) {
                               return CategoryResultScreen(
-                                selectedCategories: selectedGender,
+                                selectedCategories: selectedPrice,
                               );
                             },
                           ),

@@ -1,8 +1,10 @@
+import 'package:aashni_app/features/newin/bloc/newin_products_bloc.dart';
 import 'package:aashni_app/features/newin/view/new_in_products_screen.dart';
 import 'package:aashni_app/features/newin/view/plpfilterscreens/contemporary_filter_screen.dart';
 import 'package:aashni_app/features/newin/view/plpfilterscreens/ethnic_filter_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../bloc/product_repository.dart';
 import 'category_result_screen.dart';
 
 // class CategoryThemeScreen extends StatefulWidget {
@@ -205,7 +207,7 @@ import 'package:aashni_app/features/newin/view/plpfilterscreens/ethnic_filter_sc
 import 'package:flutter/material.dart';
 
 import 'category_result_screen.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
 class CategoryThemeScreen extends StatefulWidget {
   const CategoryThemeScreen({super.key});
 
@@ -325,13 +327,13 @@ class _CategoryThemeScreenState extends State<CategoryThemeScreen> {
                 ),
 
                 onPressed: () {
-                  List<Map<String, dynamic>> selected = [];
+                  List<Map<String, dynamic>> selectedThemes = [];
 
                   for (var cat in theme) {
                     if (cat["isSelected"] == true) {
                       // selected.add({"theme": cat["name"], "id": null});
 
-                      selected.add({
+                      selectedThemes.add({
                         "theme": cat["name"],
                         "themes": cat["name"], // 👈 Add this line
                         "id": null,
@@ -339,7 +341,7 @@ class _CategoryThemeScreenState extends State<CategoryThemeScreen> {
                     }
                     for (var child in cat["children"]) {
                       if (child["isSelected"] == true) {
-                        selected.add({
+                        selectedThemes.add({
                           "theme": cat["name"],
                           "subCategory": child["name"],
                           "id": child["id"]
@@ -348,54 +350,36 @@ class _CategoryThemeScreenState extends State<CategoryThemeScreen> {
                     }
                   }
 
-                  final selectedThemes = selected
-                      .where((item) => item["id"] == null && item["theme"] != null)
-                      .map((e) => e["theme"] as String)
-                      .toList();
+                  if (selectedThemes.isNotEmpty) {
+                    final selectedNames = selectedThemes
+                        .map((item) => item["theme"] ?? item["subCategory"])
+                        .join(", ");
 
-                  final selectedSubcategories = selected
-                      .where((item) => item["subCategory"] != null)
-                      .map((item) => {
-                    "subCategory": item["subCategory"],
-                    "id": item["id"],
-                    "isSelected": true,
-                  })
-                      .toList();
-
-                  final subcategoryText = selectedSubcategories.map((e) => e["subCategory"]).join(", ");
-                  final themeText = selectedThemes.join(", ");
-
-                  // Combine both if needed
-                  final combinedText = [
-                    if (themeText.isNotEmpty) themeText,
-                    if (subcategoryText.isNotEmpty) subcategoryText
-                  ].join(" • ");
-
-                  if (selected.isNotEmpty) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => NewInProductsScreen(
-                          selectedCategories: selected,
-                          subcategory: combinedText,
-                          initialTab: selectedThemes.isNotEmpty
-                              ? selectedThemes.first
-                              : (selectedSubcategories.isNotEmpty
-                              ? selectedSubcategories.first["subCategory"]
-                              : ''),
-                          productListBuilder: (category, sort) {
-                            return CategoryResultScreen(
-                              selectedCategories: selectedSubcategories,
-                            );
-                          },
+                        builder: (_) => BlocProvider(
+                          create: (_) => NewInProductsBloc(
+                            productRepository: ProductRepository(),
+                            subcategory: selectedNames,
+                            selectedCategories: selectedThemes,
+                          ),
+                          child: NewInProductsScreen(
+                            selectedCategories: selectedThemes,
+                            subcategory: selectedNames,
+                            initialTab: selectedThemes.first["theme"] ?? '',
+                            productListBuilder: (category, sort) {
+                              return CategoryResultScreen(
+                                selectedCategories: selectedThemes,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     );
+                    ;
                   }
-                }
-
-                ,
-
+                },
                 child: const Text(
                   "Apply",
                   style: TextStyle(fontSize: 16, color: Colors.white),
@@ -407,9 +391,11 @@ class _CategoryThemeScreenState extends State<CategoryThemeScreen> {
       ),
     );
   }
-
-
 }
+
+
+
+
 
 // class CategoryThemeScreen extends StatefulWidget {
 //   const CategoryThemeScreen({super.key});

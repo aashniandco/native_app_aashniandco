@@ -1,8 +1,10 @@
+import 'package:aashni_app/features/newin/bloc/newin_products_bloc.dart';
 import 'package:flutter/material.dart';
 
+import '../bloc/product_repository.dart';
 import 'category_result_screen.dart';
 import 'new_in_products_screen.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class CategorySizeScreen extends StatefulWidget {
   const CategorySizeScreen({super.key});
@@ -574,22 +576,29 @@ class _CategorySizeScreenState extends State<CategorySizeScreen> {
 
                   if (selectedSizes.isNotEmpty) {
                     final selectedNames = selectedSizes
-                        .map((item) => item["color"] ?? item["subCategory"])
+                        .map((item) => item["size"] ?? item["subCategory"])
                         .join(", ");
 
 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => NewInProductsScreen(
-                          selectedCategories: selectedSizes,
-                          subcategory: selectedNames,
-                          initialTab: selectedSizes.first["size"] ?? '',
-                          productListBuilder: (category, sort) {
-                            return CategoryResultScreen(
-                              selectedCategories: selectedSizes,
-                            );
-                          },
+                        builder: (_) => BlocProvider(
+                          create: (_) => NewInProductsBloc(
+                            productRepository: ProductRepository(),
+                            subcategory: selectedNames,
+                            selectedCategories: selectedSizes,
+                          ),
+                          child: NewInProductsScreen(
+                            selectedCategories: selectedSizes,
+                            subcategory: selectedNames,
+                            initialTab: selectedSizes.first["size"] ?? '',
+                            productListBuilder: (category, sort) {
+                              return CategoryResultScreen(
+                                selectedCategories: selectedSizes,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     );

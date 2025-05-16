@@ -1,84 +1,55 @@
-import 'package:aashni_app/features/newin/bloc/newin_products_bloc.dart';
-import 'package:aashni_app/features/newin/bloc/product_repository.dart';
+import 'package:aashni_app/features/newin/view/category_result_tes_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../bloc/newin_products_bloc.dart';
+import '../bloc/product_repository.dart';
 import 'category_result_screen.dart';
 import 'new_in_products_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-class CategoryShipinScreen extends StatefulWidget {
-  const CategoryShipinScreen({super.key});
+
+class CategoryAcoeditScreen extends StatefulWidget {
+  const CategoryAcoeditScreen ({super.key});
 
   @override
-  State<CategoryShipinScreen> createState() => _CategoryShipinScreenState();
+  State<CategoryAcoeditScreen> createState() => _CategoryAcoeditScreenState();
 }
 
-class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
+class _CategoryAcoeditScreenState extends State<CategoryAcoeditScreen> {
+  final List<Map<String, dynamic>> acoedit = [
+    {"name": "Belted Sarees", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Cotton Kurtas", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Cult Finds", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Embellished Tops", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Exclusive", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Festive Kurtas", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Festive Potlis", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Floral Sarees", "isEx"
+        "panded": false, "isSelected": false, "children": []},
+    {"name": "Heritage Weaves", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Kurtas Under \$500", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Lehengas Under \$2000", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Off The Runway", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Sustainable Edit", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "The Summer Edit", "isExpanded": false, "isSelected": false, "children": []},
 
-  final List <Map<String,dynamic>>shipin= [
-
-    {
-
-      "name": "Immediate",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-
-    },
-
-    {
-      "name": "1-2 Weeks",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    }
-    ,
-
-    {
-      "name": "2-4 Weeks",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    },
-
-    {
-      "name": "4-6 Weeks",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    },
-
-    {
-      "name": "6-8 Weeks",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    },
-
-    {
-      "name": "8 Weeks",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    },
   ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      appBar:AppBar(
-        title: Text("Select Ships In"),
+      appBar: AppBar(
+        title: const Text("Select A+CO Edit"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
       ),
-
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: shipin.length,
+              itemCount: acoedit.length,
               itemBuilder: (context, index) {
-                final category = shipin[index];
+                final category = acoedit[index];
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -103,12 +74,7 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
                             value: category["isSelected"],
                             onChanged: (bool? value) {
                               setState(() {
-                                shipin[index]["isSelected"] = value!;
-                                if (value) {
-                                  for (var child in category["children"]) {
-                                    child["isSelected"] = false;
-                                  }
-                                }
+                                acoedit[index]["isSelected"] = value!;
                               });
                             },
                           ),
@@ -123,14 +89,30 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
                           ),
                         ],
                       ),
-                      trailing: const SizedBox.shrink(),
                       initiallyExpanded: category["isExpanded"],
                       onExpansionChanged: (bool expanded) {
                         setState(() {
-                          shipin[index]["isExpanded"] = expanded;
+                          acoedit[index]["isExpanded"] = expanded;
                         });
                       },
-
+                      children: (category["children"] as List).map<Widget>((child) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: child["isSelected"] ?? false,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    child["isSelected"] = value!;
+                                  });
+                                },
+                              ),
+                              Expanded(child: Text(child["name"] ?? "")),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 );
@@ -151,23 +133,20 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-
                 onPressed: () {
-                  List<Map<String, dynamic>> selectedShipsin = [];
+                  List<Map<String, dynamic>> selectedacoedit = [];
 
-                  // Populate selected categories and subcategories
-                  for (var cat in shipin) {
+                  for (var cat in acoedit) {
                     if (cat["isSelected"] == true) {
-                      // selected.add({"theme": cat["name"], "id": null});
-                      selectedShipsin.add({
+                      selectedacoedit.add({
                         "theme": cat["name"],
-                        "shipin": cat["name"], // 👈 Add this line
+                        "acoedit": cat["name"],
                         "id": null,
                       });
                     }
                     for (var child in cat["children"]) {
                       if (child["isSelected"] == true) {
-                        selectedShipsin.add({
+                        selectedacoedit.add({
                           "theme": cat["name"],
                           "subCategory": child["name"],
                           "id": child["id"]
@@ -176,9 +155,9 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
                     }
                   }
 
-                  if (selectedShipsin.isNotEmpty) {
-                    final selectedNames = selectedShipsin
-                        .map((item) => item["color"] ?? item["subCategory"])
+                  if (selectedacoedit.isNotEmpty) {
+                    final selectedNames = selectedacoedit
+                        .map((item) => item["acoedit"] ?? item["subCategory"])
                         .join(", ");
 
                     Navigator.push(
@@ -188,21 +167,22 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
                           create: (_) => NewInProductsBloc(
                             productRepository: ProductRepository(),
                             subcategory: selectedNames,
-                            selectedCategories: selectedShipsin,
+                            selectedCategories: selectedacoedit,
                           ),
                           child: NewInProductsScreen(
-                            selectedCategories: selectedShipsin,
+                            selectedCategories: selectedacoedit,
                             subcategory: selectedNames,
-                            initialTab: selectedShipsin.first["shipin"] ?? '',
+                            initialTab: selectedacoedit.first["acoedit"] ?? '',
                             productListBuilder: (category, sort) {
                               return CategoryResultScreen(
-                                selectedCategories: selectedShipsin,
+                                selectedCategories: selectedacoedit,
                               );
                             },
                           ),
                         ),
                       ),
                     );
+                    ;
                   }
                 },
                 child: const Text(
@@ -217,4 +197,6 @@ class _CategoryShipinScreenState extends State<CategoryShipinScreen> {
     );
   }
 }
+
+
 

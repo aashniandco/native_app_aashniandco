@@ -5,7 +5,7 @@ import 'package:aashni_app/features/shoppingbag/shopping_bag.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-
+// designer
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
 

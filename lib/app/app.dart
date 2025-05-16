@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
 // import 'package:aashni_app/bloc/login/login_screen_bloc.dart';
 // import 'package:aashni_app/features/accessories/accessories.dart';
 // import 'package:aashni_app/features/auth/view/auth_screen.dart';
-// import 'package:aashni_app/features/auth/view/signup_screen.dart';
+// import 'package:aashni_app/features/auth/view/login_screen.dart';
 // import 'package:aashni_app/features/categories/view/categories_screen.dart';
 // import 'package:aashni_app/features/categories/view/menu_categories_screen.dart';
 // import 'package:aashni_app/features/auth/view/auth_screen.dart';

@@ -1,39 +1,95 @@
 import 'dart:async';
-
+import 'package:aashni_app/bloc/login/login_screen_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:aashni_app/common/dialog.dart';
 import 'package:aashni_app/features/accessories/accessories.dart';
 import 'package:aashni_app/features/auth/view/login_screen.dart';
+import 'package:aashni_app/features/auth/view/tab_bloc.dart';
 import 'package:aashni_app/features/categories/view/categories_screen.dart';
 import 'package:aashni_app/features/auth/view/wishlist_screen.dart';
 import 'package:aashni_app/features/auth/view_models/auth_view_model.dart';
 import 'package:aashni_app/features/categories/view/categories_screen1.dart';
 import 'package:aashni_app/features/designers.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aashni_app/features/newin/bloc/product_te.dart';
 import 'package:aashni_app/features/shoppingbag/shopping_bag.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aashni_app/features/newin/bloc/new_in_bloc.dart';
 import '../../designer/bloc/designers_screen.dart';
+import '../../login/view/login_screen.dart';
 import '../../newin/view/new_in_screen.dart';
 import 'offer_pop_up.dart';
 
-class AuthScreen extends ConsumerWidget {
+class AuthScreen extends ConsumerStatefulWidget {
   final int initialTabindex;
 
-  const AuthScreen({Key? key, this.initialTabindex=0}) : super(key: key);
-
+  const AuthScreen({Key? key, this.initialTabindex = 0}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStateMixin {
+  late TabController _tabController;
+  late TabBloc _tabBloc;
+  String? _firstName;
+  String? _lastName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+    _tabBloc = TabBloc();
+    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTabindex);
+
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _tabBloc.setTab(_tabController.index);
+      }
+    });
+  }
+
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _firstName = prefs.getString('user_firstname');
+      _lastName = prefs.getString('user_lastname');
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _tabBloc.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
 
-    return DefaultTabController(
-      length: 4,
-      initialIndex: initialTabindex,
+    return BlocProvider(
+      create: (_) => _tabBloc,
       child: Scaffold(
         appBar: AppBar(
-          title: Image.asset('assets/logo.jpeg', height: 30),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Image.asset('assets/logo.jpeg', height: 30),
+              if (_firstName != null && _lastName != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 120),
+                    child: Text(
+                      'Welcome, $_firstName $_lastName !!!',
+                      style: const TextStyle(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           elevation: 0,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
@@ -43,17 +99,14 @@ class AuthScreen extends ConsumerWidget {
               builder: (context, constraints) {
                 double screenWidth = constraints.maxWidth;
                 double fontSize = screenWidth > 360 ? 12 : 10;
+                const tabs = ["Exclusives", "New In", "Categories", "Designers"];
 
                 return TabBar(
+                  controller: _tabController,
                   labelColor: Colors.black,
                   indicatorColor: Colors.black,
                   unselectedLabelColor: Colors.grey,
-                  tabs: const [
-                    "Exclusives",
-                    "New In",
-                    "Categories",
-                    "Designers"
-                  ].map((tab) {
+                  tabs: tabs.map((tab) {
                     return Tab(
                       child: Text(
                         tab,
@@ -81,45 +134,26 @@ class AuthScreen extends ConsumerWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
+                  MaterialPageRoute(builder: (_) => ShoppingBagScreen()),
                 );
               },
             ),
           ],
         ),
+
         body: authState.isLoading
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
+          controller: _tabController,
           children: [
             HomeScreen(),
-            Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "New In",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: NewInScreen(selectedCategories: []),
-                ),
-              ],
-            ),
+           NewInScreen(selectedCategories: []),
             CategoriesPage(),
             DesignersScreen(),
           ],
         ),
         bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _tabBloc.state.index,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
             BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
@@ -130,21 +164,21 @@ class AuthScreen extends ConsumerWidget {
               case 0:
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
                       (route) => false,
                 );
                 break;
               case 1:
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const WishlistScreen()),
+                  MaterialPageRoute(builder: (_) => const WishlistScreen()),
                       (route) => false,
                 );
                 break;
               case 2:
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const AccountScreen()),
+                  MaterialPageRoute(builder: (_) =>  LoginScreen1()),
                       (route) => false,
                 );
                 break;
@@ -154,6 +188,143 @@ class AuthScreen extends ConsumerWidget {
       ),
     );
   }
+}
+// class AuthScreen extends ConsumerWidget {
+//   final int initialTabindex;
+//
+//   const AuthScreen({Key? key, this.initialTabindex=0}) : super(key: key);
+//
+//
+//   @override
+//   Widget build(BuildContext context, WidgetRef ref) {
+//     final authState = ref.watch(authViewModelProvider);
+//
+//     return DefaultTabController(
+//       length: 4,
+//       initialIndex: initialTabindex,
+//       child: Scaffold(
+//         appBar: AppBar(
+//           title: Image.asset('assets/logo.jpeg', height: 30),
+//           elevation: 0,
+//           backgroundColor: Colors.white,
+//           foregroundColor: Colors.black,
+//           bottom: PreferredSize(
+//             preferredSize: const Size.fromHeight(kToolbarHeight),
+//             child: LayoutBuilder(
+//               builder: (context, constraints) {
+//                 double screenWidth = constraints.maxWidth;
+//                 double fontSize = screenWidth > 360 ? 12 : 10;
+//
+//                 return TabBar(
+//                   labelColor: Colors.black,
+//                   indicatorColor: Colors.black,
+//                   unselectedLabelColor: Colors.grey,
+//                   tabs: const [
+//                     "Exclusives",
+//                     "New In",
+//                     "Categories",
+//                     "Designers"
+//                   ].map((tab) {
+//                     return Tab(
+//                       child: Text(
+//                         tab,
+//                         style: TextStyle(fontSize: fontSize),
+//                         overflow: TextOverflow.ellipsis,
+//                       ),
+//                     );
+//                   }).toList(),
+//                 );
+//               },
+//             ),
+//           ),
+//           actions: [
+//             IconButton(
+//               icon: const Icon(Icons.search),
+//               onPressed: () {
+//                 showDialog(
+//                   context: context,
+//                   builder: (context) => const SearchScreen(),
+//                 );
+//               },
+//             ),
+//             IconButton(
+//               icon: const Icon(Icons.shopping_bag_rounded),
+//               onPressed: () {
+//                 Navigator.push(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
+//                 );
+//               },
+//             ),
+//           ],
+//         ),
+//         body: authState.isLoading
+//             ? const Center(child: CircularProgressIndicator())
+//             : TabBarView(
+//           children: [
+//             HomeScreen(),
+//             Column(
+//               children: [
+//                 // const Padding(
+//                 //   padding: EdgeInsets.all(12),
+//                 //   child: Row(
+//                 //     children: [
+//                 //       Expanded(
+//                 //         child: Text(
+//                 //           "New In",
+//                 //           style: TextStyle(
+//                 //             fontSize: 16,
+//                 //             fontWeight: FontWeight.bold,
+//                 //           ),
+//                 //         ),
+//                 //       ),
+//                 //     ],
+//                 //   ),
+//                 // ),
+//                 Expanded(
+//                   child: NewInScreen(selectedCategories: []),
+//                 ),
+//               ],
+//             ),
+//             CategoriesPage(),
+//             DesignersScreen(),
+//           ],
+//         ),
+//         bottomNavigationBar: BottomNavigationBar(
+//           items: const [
+//             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+//             BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
+//             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
+//           ],
+//           onTap: (index) {
+//             switch (index) {
+//               case 0:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const AuthScreen()),
+//                       (route) => false,
+//                 );
+//                 break;
+//               case 1:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const WishlistScreen()),
+//                       (route) => false,
+//                 );
+//                 break;
+//               case 2:
+//                 Navigator.pushAndRemoveUntil(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const AccountScreen()),
+//                       (route) => false,
+//                 );
+//                 break;
+//             }
+//           },
+//         ),
+//       ),
+//     );
+//   }
 
   //   Widget build(BuildContext context, WidgetRef ref) {
   //     final authState = ref.watch(authViewModelProvider);
@@ -295,7 +466,7 @@ class AuthScreen extends ConsumerWidget {
       ),
     );
   }
-}
+
 
 // // HomeTab Widget reused in Exclusive and Home tab
 // class HomeTab extends StatelessWidget {

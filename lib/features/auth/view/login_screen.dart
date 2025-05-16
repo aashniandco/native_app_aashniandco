@@ -1,5 +1,5 @@
 import 'package:aashni_app/features/auth/view/auth_screen.dart';
-import 'package:aashni_app/features/auth/view/signup_screen.dart';
+import 'package:aashni_app/features/signup/view/signup_screen.dart';
 import 'package:aashni_app/features/auth/view/wishlist_screen.dart';
 import 'package:flutter/material.dart';
 

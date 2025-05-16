@@ -1,101 +1,45 @@
-import 'dart:convert';
-
+import 'package:aashni_app/features/newin/view/category_result_tes_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../bloc/newin_products_bloc.dart';
 import '../bloc/product_repository.dart';
 import 'category_result_screen.dart';
 import 'new_in_products_screen.dart';
-import 'package:http/http.dart'as http;
-import 'dart:io';
-import 'package:http/io_client.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class CategoryGenderScreen extends StatefulWidget {
-  const CategoryGenderScreen({super.key});
+class CategoryOccassionsScreen extends StatefulWidget {
+  const CategoryOccassionsScreen({super.key});
 
   @override
-  State<CategoryGenderScreen> createState() => _CategoryGenderScreenState();
+  State<CategoryOccassionsScreen> createState() => _CategoryOccassionsScreenState();
 }
 
-class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
-  final List<Map<String, dynamic>> gender = [
-    {
-      "name": "Men",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    },
-    {
-      "name": "Women",
-      "isExpanded": false,
-      "isSelected": false,
-      "children": [],
-    }
+class _CategoryOccassionsScreenState extends State<CategoryOccassionsScreen> {
+
+
+
+
+
+  final List<Map<String, dynamic>> occassions = [
+    {"name": "Bridesmaid", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Cocktail", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Engagement", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Festive", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Mehendi & Haldi", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Party", "isExpanded": false, "isSelected": false, "children": []},
+    {"name": "Puja", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Reception", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Resort", "isExpanded": false, "isSelected": false,"children": []},
+    {"name": "Sangeet", "isExpanded": false, "isSelected": false,"children": [] },
+    {"name": "Wedding", "isExpanded": false, "isSelected": false,"children": [] },
+
   ];
 
-  // List<Map<String, dynamic>> fetchedProducts = [];
-  //
-  // Future<List<dynamic>> fetchProductsByGender(String genderName) async {
-  //   const String url = "https://stage.aashniandco.com/rest/V1/solr/search";
-  //
-  //   try {
-  //     HttpClient httpClient = HttpClient();
-  //     httpClient.badCertificateCallback = (cert, host, port) => true;
-  //
-  //     IOClient ioClient = IOClient(httpClient);
-  //
-  //     final Map<String, dynamic> body = {
-  //       "queryParams": {
-  //         "query": 'gender_name:("$genderName")',
-  //         "params": {
-  //           "fl": "designer_name,actual_price_1,prod_name,prod_en_id,prod_sku,prod_small_img,prod_thumb_img,short_desc,color_name",
-  //           "rows": "100"
-  //         }
-  //       }
-  //     };
-  //
-  //     final response = await ioClient.post(
-  //       Uri.parse(url),
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: jsonEncode(body),
-  //     );
-  //
-  //     print("📡 Status Code: ${response.statusCode}");
-  //     print("📨 Raw Body: ${response.body}");
-  //
-  //     if (response.statusCode == 200) {
-  //       final decoded = jsonDecode(response.body);
-  //
-  //       if (decoded is List) {
-  //         final Map<String, dynamic>? docsWrapper = decoded.firstWhere(
-  //               (e) => e is Map<String, dynamic> && e.containsKey('docs'),
-  //           orElse: () => {},
-  //         );
-  //         return docsWrapper?['docs'] ?? [];
-  //       } else {
-  //         throw Exception("Unexpected response format");
-  //       }
-  //     } else {
-  //       throw Exception("Failed to fetch products: ${response.statusCode}");
-  //     }
-  //   } catch (e) {
-  //     print("❌ Error fetching data: $e");
-  //     return [];
-  //   }
-  // }
-  //
-
-  @override
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Select Gender"),
+        title: const Text("Select Occassions"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -104,9 +48,9 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: gender.length,
+              itemCount: occassions.length,
               itemBuilder: (context, index) {
-                final category = gender[index];
+                final category = occassions[index];
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -131,12 +75,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                             value: category["isSelected"],
                             onChanged: (bool? value) {
                               setState(() {
-                                gender[index]["isSelected"] = value!;
-                                if (value) {
-                                  for (var child in category["children"]) {
-                                    child["isSelected"] = false;
-                                  }
-                                }
+                                occassions[index]["isSelected"] = value!;
                               });
                             },
                           ),
@@ -151,13 +90,30 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                           ),
                         ],
                       ),
-                      trailing: const SizedBox.shrink(),
                       initiallyExpanded: category["isExpanded"],
                       onExpansionChanged: (bool expanded) {
                         setState(() {
-                          gender[index]["isExpanded"] = expanded;
+                          occassions[index]["isExpanded"] = expanded;
                         });
                       },
+                      children: (category["children"] as List).map<Widget>((child) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: child["isSelected"] ?? false,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    child["isSelected"] = value!;
+                                  });
+                                },
+                              ),
+                              Expanded(child: Text(child["name"] ?? "")),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 );
@@ -179,20 +135,19 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                   ),
                 ),
                 onPressed: () {
-                  List<Map<String, dynamic>> selectedGender = [];
+                  List<Map<String, dynamic>> selectedoccassions = [];
 
-                  for (var cat in gender) {
+                  for (var cat in occassions) {
                     if (cat["isSelected"] == true) {
-                      // selected.add({"theme": cat["name"], "id": null});
-                      selectedGender.add({
+                      selectedoccassions.add({
                         "theme": cat["name"],
-                        "gender": cat["name"], // 👈 Add this line
+                        "occassions": cat["name"],
                         "id": null,
                       });
                     }
                     for (var child in cat["children"]) {
                       if (child["isSelected"] == true) {
-                        selectedGender.add({
+                        selectedoccassions.add({
                           "theme": cat["name"],
                           "subCategory": child["name"],
                           "id": child["id"]
@@ -201,9 +156,9 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                     }
                   }
 
-                  if (selectedGender.isNotEmpty) {
-                    final selectedNames = selectedGender
-                        .map((item) => item["acoedit"] ?? item["subCategory"])
+                  if (selectedoccassions.isNotEmpty) {
+                    final selectedNames = selectedoccassions
+                        .map((item) => item["occassions"] ?? item["subCategory"])
                         .join(", ");
 
                     Navigator.push(
@@ -213,15 +168,15 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
                           create: (_) => NewInProductsBloc(
                             productRepository: ProductRepository(),
                             subcategory: selectedNames,
-                            selectedCategories: selectedGender,
+                            selectedCategories: selectedoccassions,
                           ),
                           child: NewInProductsScreen(
-                            selectedCategories: selectedGender,
+                            selectedCategories: selectedoccassions,
                             subcategory: selectedNames,
-                            initialTab: selectedGender.first["gender"] ?? '',
+                            initialTab: selectedoccassions.first["occassions"] ?? '',
                             productListBuilder: (category, sort) {
                               return CategoryResultScreen(
-                                selectedCategories: selectedGender,
+                                selectedCategories: selectedoccassions,
                               );
                             },
                           ),
@@ -243,20 +198,22 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
     );
   }
 }
-// class CategoryGenderScreen extends StatefulWidget {
-//   const CategoryGenderScreen({super.key});
+
+
+// class CategoryColorScreen extends StatefulWidget {
+//   const CategoryColorScreen({super.key});
 //
 //   @override
-//   State<CategoryGenderScreen> createState() => _CategoryGenderScreenState();
+//   State<CategoryColorScreen> createState() => _CategoryColorScreenState();
 // }
 //
-// class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
+// class _CategoryColorScreenState extends State<CategoryColorScreen> {
 //
-//   final List <Map<String,dynamic>>gender= [
+//   final List <Map<String,dynamic>>color= [
 //
 //     {
 //
-//       "name": "Men",
+//       "name": "Black",
 //       "isExpanded": false,
 //       "isSelected": false,
 //       "children": [],
@@ -264,18 +221,123 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //     },
 //
 //     {
-//       "name": "Women",
+//       "name": "Blue",
 //       "isExpanded": false,
 //       "isSelected": false,
 //       "children": [],
-//     }
+//     },
+//
+//     {
+//       "name": "Brown",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Burgundy",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//
+//     {
+//       "name": "Green",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Grey",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Metallic",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Multicolor",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Neutrals",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Orange",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Peach",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Pink",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Print",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Purple",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Red",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Gold",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Silver",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "White",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//     {
+//       "name": "Yellow",
+//       "isExpanded": false,
+//       "isSelected": false,
+//       "children": [],
+//     },
+//
 //   ];
 //   @override
 //   Widget build(BuildContext context) {
 //     return Scaffold(
 //
 //       appBar:AppBar(
-//         title: Text("Select Gender"),
+//         title: Text("Select Theme"),
 //         backgroundColor: Colors.white,
 //         foregroundColor: Colors.black,
 //         elevation: 1,
@@ -285,9 +347,9 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //         children: [
 //           Expanded(
 //             child: ListView.builder(
-//               itemCount: gender.length,
+//               itemCount: color.length,
 //               itemBuilder: (context, index) {
-//                 final category = gender[index];
+//                 final category = color[index];
 //                 return Container(
 //                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 //                   decoration: BoxDecoration(
@@ -312,7 +374,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //                             value: category["isSelected"],
 //                             onChanged: (bool? value) {
 //                               setState(() {
-//                                 gender[index]["isSelected"] = value!;
+//                                 color[index]["isSelected"] = value!;
 //                                 if (value) {
 //                                   for (var child in category["children"]) {
 //                                     child["isSelected"] = false;
@@ -336,7 +398,7 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //                       initiallyExpanded: category["isExpanded"],
 //                       onExpansionChanged: (bool expanded) {
 //                         setState(() {
-//                           gender[index]["isExpanded"] = expanded;
+//                           color[index]["isExpanded"] = expanded;
 //                         });
 //                       },
 //
@@ -365,9 +427,15 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //                   List<Map<String, dynamic>> selected = [];
 //
 //                   // Populate selected categories and subcategories
-//                   for (var cat in gender) {
+//                   for (var cat in color) {
 //                     if (cat["isSelected"] == true) {
-//                       selected.add({"theme": cat["name"], "id": null});
+//                       // selected.add({"theme": cat["name"], "id": null});
+//
+//                       selected.add({
+//                         "theme": cat["name"],
+//                         "color": cat["name"], // 👈 Add this line
+//                         "id": null,
+//                       });
 //                     }
 //                     for (var child in cat["children"]) {
 //                       if (child["isSelected"] == true) {
@@ -380,70 +448,37 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //                     }
 //                   }
 //
-//                   // // Build selected subcategories
-//                   // final List<Map<String, dynamic>> selectedSubcategories = [];
-//                   // for (final mainCategory in gender) {
-//                   //   for (final sub in mainCategory['children']) {
-//                   //     if (sub['isSelected'] == true) {
-//                   //       selectedSubcategories.add({
-//                   //         "subCategory": sub['name'],
-//                   //         "id": sub['id'],
-//                   //         "isSelected": true,
-//                   //       });
-//                   //     }
-//                   //   }
-//                   // }
-//                   //
-//                   // if (selected.any((item) => item["subCategory"] != null)) {
-//                   //   // ✅ Navigate if any subcategory is selected
-//                   //   final selectedSubcategoryNames = selected
-//                   //       .where((item) => item["subCategory"] != null)
-//                   //       .map((e) => e["subCategory"] as String)
-//                   //       .toList();
-//                   //
-//                   //   Navigator.push(
-//                   //     context,
 //
-//                   final selectedThemes = selected
-//                       .where((item) => item["id"] == null && item["theme"] != null)
-//                       .map((e) => e["theme"] as String)
-//                       .toList();
+//                   // Build selected subcategories
+//                   final List<Map<String, dynamic>> selectedSubcategories = [];
+//                   for (final mainCategory in color) {
+//                     for (final sub in mainCategory['children']) {
+//                       if (sub['isSelected'] == true) {
+//                         selectedSubcategories.add({
+//                           "subCategory": sub['name'],
+//                           "id": sub['id'],
+//                           "isSelected": true,
+//                         });
+//                       }
+//                     }
+//                   }
 //
+//                   if (selected.any((item) => item["subCategory"] != null)) {
+//                     // ✅ Navigate if any subcategory is selected
+//                     final selectedSubcategoryNames = selected
+//                         .where((item) => item["subCategory"] != null)
+//                         .map((e) => e["subCategory"] as String)
+//                         .toList();
 //
-//                   final selectedSubcategories = selected
-//                       .where((item) => item["subCategory"] != null)
-//                       .map((item) => {
-//                     "subCategory": item["subCategory"],
-//                     "id": item["id"],
-//                     "isSelected": true,
-//                   })
-//                       .toList();
-//
-//
-//                   final subcategoryText = selectedSubcategories.map((e) => e["subCategory"]).join(", ");
-//                   final themeText = selectedThemes.join(", ");
-//
-//
-//                   // Combine both if needed
-//                   final combinedText = [
-//                     if (themeText.isNotEmpty) themeText,
-//                     if (subcategoryText.isNotEmpty) subcategoryText
-//                   ].join(" • ");
-//
-//
-//                   if (selected.isNotEmpty) {
 //                     Navigator.push(
 //                       context,
-//
 //                       MaterialPageRoute(
 //                         builder: (_) => NewInProductsScreen(
 //                           selectedCategories: selected,
-//                           subcategory: combinedText,
-//                           initialTab: selectedThemes.isNotEmpty
-//                               ? selectedThemes.first
-//                               : (selectedSubcategories.isNotEmpty
-//                               ? selectedSubcategories.first["subCategory"]
-//                               : ''),
+//                           subcategory: selectedSubcategoryNames.join(", "),
+//                           initialTab: selectedSubcategoryNames.isNotEmpty
+//                               ? selectedSubcategoryNames.first
+//                               : '',
 //                           productListBuilder: (category, sort) {
 //                             return CategoryResultScreen(
 //                               selectedCategories: selectedSubcategories,
@@ -452,9 +487,27 @@ class _CategoryGenderScreenState extends State<CategoryGenderScreen> {
 //                         ),
 //                       ),
 //                     );
+//                   } else if (selected.length == 1 && selected[0]["id"] == null) {
+//                     // ✅ Navigate when only theme (like Contemporary or Ethnic) is selected
+//                     String themeName = selected[0]["theme"];
+//
+//                     Navigator.push(
+//                       context,
+//                       MaterialPageRoute(
+//                         builder: (_) => NewInProductsScreen(
+//                           selectedCategories: selected,
+//                           subcategory: themeName,
+//                           initialTab: themeName,
+//                           productListBuilder: (category, sort) {
+//                             return CategoryResultScreen(
+//                               selectedCategories: [],
+//                             );
+//                           },
+//                         ),
+//                       ),
+//                     );
 //                   }
 //                 }
-//
 //                 ,
 //
 //                 child: const Text(

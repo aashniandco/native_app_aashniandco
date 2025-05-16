@@ -4,8 +4,12 @@ import 'package:aashni_app/features/newin/view/new_in_category_designer.dart';
 import 'package:flutter/material.dart';
 
 import 'cat_theme_screen.dart';
+import 'category_acoedit_screen.dart';
 import 'category_filter.dart';
+import 'category_filter_screen.dart';
 import 'category_gender_screen.dart';
+import 'category_occassions_screen.dart';
+import 'category_price_screen.dart';
 import 'category_size_screen.dart';
 
 class FilterBottomSheet extends StatefulWidget {
@@ -25,7 +29,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     "SIZE",
     "SHIPS IN",
     "PRICE",
-    "A+CO EDITS"
+    "A+CO EDITS",
+    "Occasions"
   ];
 
   @override
@@ -96,6 +101,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
+                            // builder: (_) => const CategoryFilterScreen(),
                             builder: (_) => const CategoryFilterScreen(),
                           ),
                         );
@@ -146,11 +152,31 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
                       else if (selectedOption == "SHIPS IN"){
 
-                        // Navigator.push(context, MaterialPageRoute(builder: (_)=> const
-                        // CategoryShipinScreen()
-                        // ));
+                        Navigator.push(context, MaterialPageRoute(builder: (_)=> const
+                        CategoryShipinScreen()
+                        ));
                       }
 
+                      else if (selectedOption == "A+CO EDITS"){
+
+                        Navigator.push(context, MaterialPageRoute(builder: (_)=> const
+                        CategoryAcoeditScreen()
+                        ));
+                      }
+
+                      else if (selectedOption == "Occasions"){
+
+                        Navigator.push(context,MaterialPageRoute(builder: (_)=> const
+                        CategoryOccassionsScreen()
+                        ));
+                      }
+
+                      else if (selectedOption == "PRICE"){
+
+                        Navigator.push(context,MaterialPageRoute(builder: (_)=> const
+                        CategoryPriceScreen()
+                        ));
+                      }
                     },
                   ),
                 );

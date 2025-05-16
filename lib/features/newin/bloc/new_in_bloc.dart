@@ -121,33 +121,138 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
   //   }
   // }
 
+
   Future<void> _onFetchNewIn(
       FetchNewIn event, Emitter<NewInState> emit) async {
     emit(NewInLoading());
 
-    final url = Uri.parse(ApiConstants.newIn);
+    final uri = Uri.parse(ApiConstants.url);
 
     try {
       HttpClient httpClient = HttpClient();
       httpClient.badCertificateCallback = (cert, host, port) => true;
       IOClient ioClient = IOClient(httpClient);
 
-      final response = await ioClient.get(url, headers: {"Connection": "keep-alive"});
+      // Static subcategory
+      final subcategory = 'new in';
+
+      final Map<String, dynamic> body = {
+        "queryParams": {
+          "query": 'categories-store-1_name:("$subcategory")',
+          "params": {
+            "fl": "designer_name,actual_price_1,prod_name,prod_en_id,prod_sku,prod_small_img,prod_thumb_img,short_desc,categories-store-1_name,size_name,prod_desc,child_delivery_time",
+            "rows": "40000",
+            "sort": "prod_en_id desc"
+          }
+        }
+      };
+
+      final response = await ioClient.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
 
       if (response.statusCode == 200) {
-        final List<dynamic> responseList = jsonDecode(response.body);
-        final Map<String, dynamic> productData = responseList[1];
-        final List<dynamic> docs = productData['docs'];
+        final decoded = jsonDecode(response.body);
+        final secondItem = decoded[1];
+        final docs = secondItem['docs'];
 
-        final List<Product> products = docs.map((json) => Product.fromJson(json)).toList();
-
-        emit(NewInLoaded(products: products));
+        if (docs is List) {
+          final products = docs.map((doc) => Product.fromJson(doc)).toList();
+          emit(NewInLoaded(products: products));
+        } else {
+          emit(NewInError("Invalid docs format"));
+        }
       } else {
-        emit(NewInError("Failed to load products"));
+        emit(NewInError("Failed with status: ${response.statusCode}"));
       }
+    } on SocketException {
+      emit(NewInError("No internet connection"));
     } catch (e) {
       emit(NewInError("Error: $e"));
     }
   }
+  // Future<void> _onFetchNewIn(
+  //     FetchNewIn event, Emitter<NewInState> emit) async {
+  //   emit(NewInLoading());
+  //
+  //   final uri = Uri.parse(ApiConstants.url);
+  //
+  //   try {
+  //     HttpClient httpClient = HttpClient();
+  //     httpClient.badCertificateCallback = (cert, host, port) => true;
+  //     IOClient ioClient = IOClient(httpClient);
+  //
+  //     // Static subcategory
+  //     final subcategory = 'new in';
+  //
+  //     final Map<String, dynamic> body = {
+  //       "queryParams": {
+  //         "query": 'categories-store-1_name:("$subcategory")',
+  //         "params": {
+  //           "fl": "designer_name,actual_price_1,prod_name,prod_en_id,prod_sku,prod_small_img,prod_thumb_img,short_desc,categories-store-1_name",
+  //           "rows": "40000",
+  //           "sort": "prod_en_id desc"
+  //         }
+  //       }
+  //     };
+  //
+  //     final response = await ioClient.post(
+  //       uri,
+  //       headers: {"Content-Type": "application/json"},
+  //       body: jsonEncode(body),
+  //     );
+  //
+  //     if (response.statusCode == 200) {
+  //       final decoded = jsonDecode(response.body);
+  //       final secondItem = decoded[1];
+  //       final docs = secondItem['docs'];
+  //
+  //       if (docs is List) {
+  //         final products = docs.map((doc) => Product.fromJson(doc)).toList();
+  //         emit(NewInLoaded(products: products));
+  //       } else {
+  //         emit(NewInError("Invalid docs format"));
+  //       }
+  //     } else {
+  //       emit(NewInError("Failed with status: ${response.statusCode}"));
+  //     }
+  //   }
+  //   catch (e) {
+  //     emit(NewInError("Error: $e"));
+  //   }
+  // }
+
+
+
+// Future<void> _onFetchNewIn(
+  //     FetchNewIn event, Emitter<NewInState> emit) async {
+  //   emit(NewInLoading());
+  //
+  //   final url = Uri.parse(ApiConstants.newIn);
+  //
+  //   try {
+  //     HttpClient httpClient = HttpClient();
+  //     httpClient.badCertificateCallback = (cert, host, port) => true;
+  //     IOClient ioClient = IOClient(httpClient);
+  //
+  //     final response = await ioClient.get(url, headers: {"Connection": "keep-alive"});
+  //
+  //     if (response.statusCode == 200) {
+  //       final List<dynamic> responseList = jsonDecode(response.body);
+  //       final Map<String, dynamic> productData = responseList[1];
+  //       final List<dynamic> docs = productData['docs'];
+  //
+  //       final List<Product> products = docs.map((json) => Product.fromJson(json)).toList();
+  //
+  //       emit(NewInLoaded(products: products));
+  //     } else {
+  //       emit(NewInError("Failed to load products"));
+  //     }
+  //   } catch (e) {
+  //     emit(NewInError("Error: $e"));
+  //   }
+  // }
 
 }
