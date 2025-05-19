@@ -24,6 +24,79 @@ class _CartScreenState extends State<CartScreen> {
   void initState() {
     super.initState();
     loadCartAndSync();
+    checkTokenValidity();
+    _fetchMagentoCartItems();
+  }
+
+  // void _fetchMagentoCartItems() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('user_token');
+  //   if (token != null) {
+  //     try {
+  //       final items = await getMagentoCartItems(token);
+  //       print("Magento Cart Items: $items");
+  //     } catch (e) {
+  //       print("Error fetching Magento cart items: $e");
+  //     }
+  //   } else {
+  //     print("No user token found");
+  //   }
+  // }
+
+  void _fetchMagentoCartItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('user_token');
+    if (token != null) {
+      try {
+        final items = await getMagentoCartItems(token);
+        print("Magento Cart Items>>>: $items");
+
+        setState(() {
+          cartItems = items.map<Map<String, dynamic>>((item) {
+            return {
+              'item_id': item['item_id'],
+              'quantity': item['qty'],
+              'actualPrice': item['price'],
+              'prodSmallImg': baseUrl + "/media/catalog/product" + (item['product']['custom_attributes']?.firstWhere((attr) => attr['attribute_code'] == 'small_image', orElse: () => {})?['value'] ?? ''),
+              'designer_name': item['name'] ?? '',
+              'shortDesc': item['product_type'] ?? '',
+            };
+          }).toList();
+        });
+      } catch (e) {
+        print("Error fetching Magento cart items: $e");
+      }
+    } else {
+      print("No user token found");
+    }
+  }
+
+
+  Future<List<dynamic>> getMagentoCartItems(String token) async {
+    final url = Uri.parse('$baseUrl/rest/V1/carts/mine/items');
+    final client = IOClient(HttpClient()..badCertificateCallback = (cert, host, port) => true);
+    final response = await client.get(url, headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    });
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as List<dynamic>;
+    } else {
+      throw Exception("Failed to fetch cart items");
+    }
+  }
+
+  Future<void> checkTokenValidity() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('user_token');
+
+    if (token == null) {
+      print("No user token found");
+      return;
+    }
+
+    bool valid = await isTokenValid(token);
+    print('Is token valid? $valid');
   }
 
   Future<void> loadCartAndSync() async {
@@ -141,22 +214,63 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
+
+
+
+  // Future<void> deleteCartItemMagento({
+  //     required String token,
+  //     required int itemId,
+  //   }) async {
+  //     final url = Uri.parse('$baseUrl/rest/V1/carts/mine/items/$itemId');
+  //     print("delete method url:$url");
+  //     final client = IOClient(HttpClient()..badCertificateCallback = (cert, host, port) => true);
+  //
+  //     final response = await client.delete(
+  //       url,
+  //       headers: {
+  //         'Authorization': 'Bearer $token',
+  //         'Content-Type': 'application/json',
+  //       },
+  //     );
+  //
+  //     if (response.statusCode == 200) {
+  //       print("Item $itemId deleted successfully from cart.");
+  //     } else {
+  //       print("Error deleting item: ${response.statusCode} - ${response.body}");
+  //       throw Exception("Failed to delete cart item $itemId");
+  //     }
+  //   }
+
   Future<void> deleteCartItemMagento({
     required String token,
     required int itemId,
   }) async {
+    final valid = await isTokenValid(token);
+    if (!valid) {
+      throw Exception("Token is invalid or expired.");
+    }
+
     final url = Uri.parse('$baseUrl/rest/V1/carts/mine/items/$itemId');
+    print("delete method url:$url");
     final client = IOClient(HttpClient()..badCertificateCallback = (cert, host, port) => true);
 
     final response = await client.delete(
       url,
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      print("Item $itemId deleted successfully from cart.");
+    } else {
+      print("Error deleting item: ${response.statusCode} - ${response.body}");
       throw Exception("Failed to delete cart item $itemId");
     }
   }
+
+
 
   Future<void> pushLocalCartToMagento() async {
     setState(() => isLoading = true);
@@ -182,23 +296,32 @@ class _CartScreenState extends State<CartScreen> {
           quantity: qty,
         );
 
-        // Save item_id for future updates/deletes
         cartItems[i]['item_id'] = response['item_id'];
       }
 
       await saveCartItems();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Cart synced with Magento")),
-        );
-      }
+      // ✅ Wait 5 seconds before clearing local cart
+      Future.delayed(const Duration(seconds: 30), () async {
+        setState(() {
+          cartItems.clear();
+        });
+        await prefs.remove('cartItems');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Cart synced with Magento and local cart cleared")),
+          );
+        }
+      });
     } catch (e) {
       debugPrint('Error syncing cart: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
+
+
 
   void updateQuantity(int index, int delta) async {
     if (isLoading) return; // Prevent multiple taps
@@ -246,6 +369,23 @@ class _CartScreenState extends State<CartScreen> {
       if (mounted) setState(() => isLoading = false);
     }
   }
+
+  Future<bool> isTokenValid(String token) async {
+    final url = Uri.parse('$baseUrl/rest/V1/customers/me');
+
+    final httpClient = IOClient(HttpClient()..badCertificateCallback = (cert, host, port) => true);
+    final response = await httpClient.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    return response.statusCode == 200;
+  }
+
+
 
 
 

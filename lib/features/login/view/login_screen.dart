@@ -43,6 +43,7 @@ class _LoginScreen1State extends State<LoginScreen1> {
 
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('user_token');
+        print("Login token ep>>$token");
 
         if (token != null && token.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(

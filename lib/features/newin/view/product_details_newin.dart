@@ -32,6 +32,7 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
   String firstName = '';
   String lastName = '';
   int customer_id = 0;
+  int cartQty = 0;
 
   // List<String> sizes = ["S", "M", "L"]; // Dummy size options
   List<String> sizes = [];
@@ -41,7 +42,7 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
   @override
   void initState() {
     super.initState();
-
+    _fetchCartQuantity();
     _pageController = PageController();
 
     final rawSizes = widget.product['size_name'];
@@ -133,6 +134,8 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
     );
   }
 
+
+
   Future<void> onAddToCartPressed() async {
     if (selectedSize.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,8 +149,18 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
     IOClient ioClient = IOClient(httpClient);
 
     try {
-      // Step 1: Get admin token
-      final tokenResponse = await ioClient.post(
+      final prefs = await SharedPreferences.getInstance();
+      final customerToken = prefs.getString('user_token');
+
+      if (customerToken == null || customerToken.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not logged in.')),
+        );
+        return;
+      }
+
+      // Step 1: Get admin token to access configurable children
+      final adminTokenResponse = await ioClient.post(
         Uri.parse('https://stage.aashniandco.com/rest/V1/integration/admin/token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -156,69 +169,166 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
         }),
       );
 
-      if (tokenResponse.statusCode != 200) {
-        print("Failed to generate token: ${tokenResponse.body}");
+      if (adminTokenResponse.statusCode != 200) {
+        print("Failed to generate admin token: ${adminTokenResponse.body}");
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to authenticate.')),
+          const SnackBar(content: Text('Failed to authenticate admin.')),
         );
         return;
       }
 
-      final token = json.decode(tokenResponse.body); // plain token
-      final sku = widget.product['prod_sku'];
-      print("SKU>>>$sku");
+      final adminToken = json.decode(adminTokenResponse.body);
 
-      // Step 2: Get child products of configurable
-      final response = await ioClient.get(
+      // Step 2: Get child SKUs of configurable product
+      final sku = widget.product['prod_sku'];
+      final childrenResponse = await ioClient.get(
         Uri.parse('https://stage.aashniandco.com/rest/V1/configurable-products/$sku/children'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $adminToken',
         },
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> children = json.decode(response.body);
+      if (childrenResponse.statusCode != 200) {
+        print("Failed to fetch child SKUs: ${childrenResponse.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to fetch product variants.')),
+        );
+        return;
+      }
 
-        final matchedChild = children.firstWhere(
-              (child) => child['sku'].toString().toLowerCase().endsWith(selectedSize.toLowerCase()),
-          orElse: () => null,
+      final List<dynamic> children = json.decode(childrenResponse.body);
+
+      final matchedChild = children.firstWhere(
+            (child) => child['sku'].toString().toLowerCase().endsWith(selectedSize.toLowerCase()),
+        orElse: () => null,
+      );
+
+      if (matchedChild == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Size $selectedSize not available.')),
+        );
+        return;
+      }
+
+      final matchedSku = matchedChild['sku'];
+      print("Selected SKU: $matchedSku");
+
+      // Step 3: Get current customer's cart ID (quote_id)
+      final cartResponse = await ioClient.get(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $customerToken',
+        },
+      );
+
+      if (cartResponse.statusCode != 200) {
+        print("Failed to fetch cart: ${cartResponse.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to get user cart.')),
+        );
+        return;
+      }
+
+      final cartJson = json.decode(cartResponse.body);
+
+      // Extract only the cart ID, which Magento expects as string
+      final quoteId = cartJson['id'].toString();
+      print("Cart (quote) ID: $quoteId");
+
+      // Step 4: Add product to cart
+      final addToCartResponse = await ioClient.post(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/items'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $customerToken',
+        },
+        body: json.encode({
+          "cartItem": {
+            "sku": matchedSku,
+            "qty": 1,
+            "quote_id": quoteId,
+            "product_type": "simple",
+          }
+        }),
+      );
+
+      if (addToCartResponse.statusCode == 200) {
+        _fetchCartQuantity();
+        print("Product added to cart successfully.");
+
+        // Optionally save locally
+        final selectedProduct = {
+          ...widget.product,
+          'selectedSize': selectedSize,
+          'childSku': matchedSku,
+        };
+        await saveProductToPrefs(selectedProduct);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product added to cart")),
         );
 
-        if (matchedChild != null) {
-          final matchedSku = matchedChild['sku'];
-          print("Selected SKU: $matchedSku");
+        // Uncomment below if you want to navigate to Cart screen
+        // Navigator.push(context, MaterialPageRoute(builder: (context) => CartScreen()));
 
-          // Save selected product with matched SKU to local storage
-          final selectedProduct = {
-            ...widget.product,
-            'selectedSize': selectedSize,
-            'childSku': matchedSku,
-          };
-          await saveProductToPrefs(selectedProduct);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Product added to cart")),
-          );
-
-          // Navigate to cart screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => CartScreen()),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Size $selectedSize not available.')),
-          );
-        }
       } else {
-        print("Failed to fetch child SKUs: ${response.body}");
+        print("Failed to add to cart: ${addToCartResponse.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add product to cart')),
+        );
       }
     } catch (e) {
       print("Exception: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An error occurred.')),
       );
+    }
+  }
+
+
+  Future<void> _fetchCartQuantity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customerToken = prefs.getString('user_token');
+
+      if (customerToken == null || customerToken.isEmpty) {
+        setState(() {
+          cartQty = 0;
+        });
+        return;
+      }
+
+      HttpClient httpClient = HttpClient();
+      httpClient.badCertificateCallback = (cert, host, port) => true;
+      IOClient ioClient = IOClient(httpClient);
+
+      final response = await ioClient.get(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+        headers: {
+          'Authorization': 'Bearer $customerToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final int itemsCount = data['items_count'] ?? 0;
+        setState(() {
+          cartQty = itemsCount;
+        });
+      } else {
+        print('Failed to fetch cart: ${response.body}');
+        setState(() {
+          cartQty = 0;
+        });
+      }
+    } catch (e) {
+      print('Error fetching cart quantity: $e');
+      setState(() {
+        cartQty = 0;
+      });
     }
   }
 
@@ -313,7 +423,37 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_bag_rounded),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.shopping_bag_rounded, color: Colors.black),
+                if (cartQty > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        '$cartQty',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             onPressed: () {
               Navigator.push(
                 context,

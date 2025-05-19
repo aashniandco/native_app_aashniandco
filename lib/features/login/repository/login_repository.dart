@@ -13,6 +13,7 @@ class LoginRepository {
 
   Future<void> login(MagentoLoginRequest request) async {
     final url = Uri.parse('$baseUrl/rest/V1/integration/customer/token');
+
     final HttpClient httpClient = HttpClient()
       ..badCertificateCallback = (cert, host, port) => true;
     final IOClient ioClient = IOClient(httpClient);
@@ -29,7 +30,7 @@ class LoginRepository {
       final token = jsonDecode(response.body) as String;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_token', token);
-
+      print('Stored token after login: $token');
       // Fetch user info
       final user = await fetchUserDetails(token);
       if (user != null) {
