@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:aashni_app/bloc/login/login_screen_bloc.dart';
+import 'package:aashni_app/features/signup/view/signup_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:aashni_app/common/dialog.dart';
 import 'package:aashni_app/features/accessories/accessories.dart';
