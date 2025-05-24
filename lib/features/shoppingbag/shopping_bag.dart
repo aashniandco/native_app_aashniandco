@@ -3,7 +3,7 @@ import 'package:aashni_app/features/auth/view/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/src/adapters/io_adapter.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -13,6 +13,8 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 
+import 'model/countries.dart';
+
 class ShoppingBagScreen extends StatefulWidget {
   @override
   _ShoppingBagScreenState createState() => _ShoppingBagScreenState();
@@ -20,30 +22,260 @@ class ShoppingBagScreen extends StatefulWidget {
 
 class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
   List<dynamic> cartItems = [];
-  // List<Map<String, dynamic>> cartItems = [];
-
   bool isLoading = true;
-  bool isLoggedIn = false;
+  bool isShippingLoading = false; // For shipping estimation
+  bool isLoggedIn = false; // Assuming you manage this elsewhere
+  List<Country> countries = [];
+  String selectedCountryName = '';
+  String selectedCountryId = ''; // To store the ID like "IN", "US"
+  // String selectedRegionName = ''; // Not used for now, but keep if needed
+  List<String> countryNames = [];
+  double shippingPrice = 0.0;
+  Map<String, double> methodPriceMap = {};
+  // List<String> regionNames = []; // Not used for now
+
+  List<ShippingMethod> availableShippingMethods = [];
+  ShippingMethod? selectedShippingMethod;
+  double currentShippingCost = 0.0;
+  bool _isDioInitialized = false;
+
 
   //
   // List<Map<String, dynamic>> cartItems = [];
 
   late Dio dio;
-  final CookieJar cookieJar = CookieJar();
+  late PersistCookieJar persistentCookieJar;
+  // final CookieJar cookieJar = CookieJar();
 
+  @override
   @override
   void initState() {
     super.initState();
-    dio = Dio();
-    dio.interceptors.add(CookieManager(cookieJar));
 
-// ignore bad SSL certificates
+    // fetchCountries().then((list) {
+    //   setState(() {
+    //     countries = list;
+    //     countryNames = countries.map((c) => c.fullNameLocale).toList();
+    //
+    //     if (countries.isNotEmpty) {
+    //       selectedCountryName = countries[0].fullNameLocale;
+    //       // Removed region update call here
+    //     }
+    //   });
+    // });
+
+    fetchInitialData();
+
+    _initializeAsyncDependencies();
+    // dio = Dio();
+    // dio.interceptors.add(CookieManager(cookieJar));
+    // (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (HttpClient client) {
+    //   client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+    //   return client;
+    // };
+
+    fetchCartItems();
+  }
+
+  Future<void> _initializeAsyncDependencies() async {
+    if (_isDioInitialized) return; // Prevent re-initialization
+
+    // Initialize PersistentCookieJar
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    String appDocPath = appDocDir.path;
+    persistentCookieJar = PersistCookieJar(
+      ignoreExpires: true,
+      storage: FileStorage(appDocPath + "/.cookies/"), // Path for storing cookies
+    );
+
+    // Initialize Dio
+    dio = Dio(BaseOptions(baseUrl: 'https://stage.aashniandco.com/rest'));
+    dio.interceptors.add(CookieManager(persistentCookieJar)); // Use the persistent jar
+
+    // Add Logging Interceptor (as shown in point 1)
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest:(options, handler) { /* ... */ return handler.next(options); },
+      onResponse:(response,handler) { /* ... */ return handler.next(response); },
+      onError:(DioError e, handler) { /* ... */ return handler.next(e); },
+    ));
+
+    // Add 401 Handling Interceptor (as shown in point 2)
+    dio.interceptors.add(InterceptorsWrapper(
+      onError: (DioError e, handler) {
+        if (e.response?.statusCode == 401) {
+          if (e.requestOptions.path.contains('/mine/')) {
+            print("Unauthorized (401) from interceptor for ${e.requestOptions.path}.");
+            if (mounted) {
+              setState(() { isLoggedIn = false; });
+              // Clear other session-specific data
+            }
+            // Persist the logged-out state
+            SharedPreferences.getInstance().then((prefs) => prefs.setBool('isUserLoggedIn', false));
+            // TODO: Navigate to login
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Session expired. Please log in again.")),
+              );
+            }
+          }
+        }
+        return handler.next(e);
+      },
+    ));
+
     (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (HttpClient client) {
       client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
       return client;
     };
-    fetchCartItems();
+
+    _isDioInitialized = true; // Mark as initialized
+
+    // Load login state
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool wasLoggedIn = prefs.getBool('isUserLoggedIn') ?? false;
+
+    if (mounted) {
+      setState(() {
+        isLoggedIn = wasLoggedIn;
+      });
+    }
+
+    print("Initial isLoggedIn state: $isLoggedIn");
+
+    // Now fetch data
+    fetchInitialData();
   }
+  Future<List<Country>> fetchCountries() async {
+    final url = 'https://stage.aashniandco.com/rest/V1/directory/countries';
+
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+    try {
+      final response = await ioClient.get(Uri.parse(url));
+
+      print('Status Code: ${response.statusCode}');
+      print('Headers: ${response.headers}');
+      print('Raw response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+
+        if (decoded is Map<String, dynamic> && decoded.containsKey('countries')) {
+          return (decoded['countries'] as List)
+              .map((json) => Country.fromJson(json))
+              .toList();
+        } else {
+          // If API returns just a List instead of Map, handle this
+          return (decoded as List)
+              .map((json) => Country.fromJson(json))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching countries: $e');
+      return [];
+    }
+  }
+
+  Future<void> fetchInitialData() async {
+    setState(() => isLoading = true);
+    await fetchCountries().then((list) {
+      if (mounted) {
+        setState(() {
+          countries = list;
+          countryNames = countries.map((c) => c.fullNameLocale).toSet().toList(); // Use toSet() to remove duplicates if any, then toList()
+          if (countries.isNotEmpty) {
+            // Try to find a default country, e.g., India, or fallback to the first one
+            Country initialCountry = countries.firstWhere((c) => c.id == 'IN', orElse: () => countries.first);
+            selectedCountryName = initialCountry.fullNameLocale;
+            selectedCountryId = initialCountry.id;
+            // Automatically fetch shipping for the default selected country if cart ID is available
+            // if (_guestCartId != null && selectedCountryId.isNotEmpty) {
+            //   _estimateShipping(); // Call this after cart items are loaded and _guestCartId is set
+            // }
+          }
+        });
+      }
+    });
+    await fetchCartItems(); // This should populate _guestCartId
+    setState(() => isLoading = false);
+  }
+
+  Future<void> _estimateShipping() async {
+    setState(() {
+      isShippingLoading = true;
+    });
+
+    final countryId = selectedCountryId; // e.g., "IN", "US"
+    final regionId = 0; // Always 0
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+
+    if (customerToken == null || customerToken.isEmpty) {
+      setState(() {
+        isLoggedIn = false;
+        isShippingLoading = false;
+      });
+      return;
+    }
+
+    isLoggedIn = true;
+
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+
+    final shippingUrl =
+        "https://stage.aashniandco.com/rest/V1/aashni/shipping-rate/$countryId/$regionId";
+print("shippingUrl$shippingUrl");
+    try {
+      final response = await ioClient.get(
+        Uri.parse(shippingUrl),
+        headers: {
+          'Authorization': 'Bearer $customerToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      print("data>>$data");
+      if (response.statusCode == 200 && data is List && data.length >= 2 && data[0] == true) {
+        final price = data[1];
+        if (price != null) {
+          setState(() {
+            shippingPrice = price.toDouble();
+            currentShippingCost = shippingPrice;
+
+            if (availableShippingMethods.isNotEmpty) {
+              selectedShippingMethod = availableShippingMethods.first;
+            } else {
+              selectedShippingMethod = null;
+            }
+          });
+        }
+
+
+
+
+      } else {
+        print('Failed to get shipping rate: ${response.body}');
+      }
+    } catch (e) {
+      print('Error estimating shipping: $e');
+    } finally {
+      setState(() {
+        isShippingLoading = false;
+      });
+    }
+  }
+
+
+
+
+
 
   Future<void> fetchCartItems() async {
     final prefs = await SharedPreferences.getInstance();
@@ -399,147 +631,435 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
 
   @override
 
+
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Shopping Bag")),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (!isLoggedIn) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Shopping Bag")),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "SIGN IN TO YOUR ACCOUNT TO ENABLE SYNC",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => AccountScreen()),
-                  );
-                },
-                child: const Text("Sign In"),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (cartItems.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Shopping Bag")),
-        body: const Center(child: Text("Your cart is empty")),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(title: const Text("Shopping Bag")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ...cartItems.map((item) {
-              print('Item type: ${item.runtimeType}');
-              print('Item: $item');
-              if (item is! Map<String, dynamic>) return const SizedBox.shrink();
-              final qty = item['qty'] ?? 1;
-              final price = double.tryParse(item['price'].toString()) ?? 0.0;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7F2),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        item['prodSmallImg'] ?? '',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.image_not_supported),
+      body: Column(
+        children: [
+          // Scrollable Cart Items
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (cartItems.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Text(
+                          "Your cart is empty.",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    Text(item['name'] ?? '',
-                    style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text("SKU: ${item['sku'] ?? ''}",
-                    style: const TextStyle(
-                    fontSize: 13, color: Colors.grey)),
-                    const SizedBox(height: 4),
-              Text("Price : ₹${price.toStringAsFixed(0)}",
-              style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              Row(
-              children: [
-                IconButton(
-                  onPressed: () => _onQtyChange(item, -1),
-                  icon: const Icon(Icons.remove),
-                ),
-                Text(
-                  '${item['qty']}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: () => _onQtyChange(item, 1),
-                  icon: const Icon(Icons.add),
-                ),
-              const Spacer(),
-              IconButton(
-              onPressed: () async {
-              await removeItem(context, item['item_id']);
-              // no need to remove item here again, since removeItem already calls setState and removes
-              },
-              icon: const Icon(Icons.delete_outline),
-              ),
+                    )
+                  else
+                    ...cartItems.map((item) {
+                      final qty = item['qty'] ?? 1;
+                      final price = double.tryParse(item['price'].toString()) ?? 0.0;
 
-              ],
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7F2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                item['prodSmallImg'] ?? '',
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.image_not_supported),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['name'] ?? '',
+                                    style: const TextStyle(
+                                        fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text("SKU: ${item['sku'] ?? ''}",
+                                      style: const TextStyle(
+                                          fontSize: 13, color: Colors.grey)),
+                                  const SizedBox(height: 4),
+                                  Text("Price : ₹${price.toStringAsFixed(0)}",
+                                      style: const TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                          onPressed: () => _onQtyChange(item, -1),
+                                          icon: const Icon(Icons.remove)),
+                                      Text('$qty',
+                                          style: const TextStyle(
+                                              fontSize: 16, fontWeight: FontWeight.bold)),
+                                      IconButton(
+                                          onPressed: () => _onQtyChange(item, 1),
+                                          icon: const Icon(Icons.add)),
+                                      const Spacer(),
+                                      IconButton(
+                                          onPressed: () =>
+                                              removeItem(context, item['item_id']),
+                                          icon: const Icon(Icons.delete_outline)),
+                                    ],
+                                  ),
+                                  Text("Subtotal : ₹${(price * qty).toStringAsFixed(0)}",
+                                      style: const TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                ],
               ),
-              Text("Subtotal : ₹${(price * qty).toStringAsFixed(0)}",
-              style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w500)),
-              ],
-              ),
-              ),
+            ),
+          ),
 
-                  ],
-                ),
-              );
-            }).toList(),
-
-            // Optional: Add coupon / address / payment summary below here
+          // Fixed bottom section (Estimate Shipping, Order Summary, Coupon, Checkout)
+          Container(
+          height: 450,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          boxShadow: [
+          BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, -2),
+          )
           ],
-        ),
+          ),
+          child: SingleChildScrollView(
+          child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          // Estimate Shipping Section
+          Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+          color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [
+    BoxShadow(
+    color: Colors.grey.withOpacity(0.1),
+    spreadRadius: 1,
+    blurRadius: 5,
+    offset: const Offset(0, 2),
+    ),
+    ],
+    ),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    Container(
+    padding: const EdgeInsets.all(16),
+    decoration: const BoxDecoration(
+    color: Colors.black,
+    borderRadius: BorderRadius.only(
+    topLeft: Radius.circular(16),
+    topRight: Radius.circular(16),
+    ),
+    ),
+    child: const Text('Estimate Shipping',
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: FontWeight.w600)),
+    ),
+    Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    const Text(
+    'Enter your destination to get a shipping estimate.',
+    style: TextStyle(fontSize: 16, color: Colors.black87),
+    ),
+    const SizedBox(height: 20),
+
+    buildDropdown(
+    label: 'Select Country',
+    value: selectedCountryName,
+    items: countryNames,
+    onChanged: (value) {
+    if (value != null && value != selectedCountryName) {
+    setState(() {
+    selectedCountryName = value;
+
+    if (countries.isNotEmpty) {
+    final selected = countries.firstWhere(
+    (c) => c.fullNameLocale == value,
+    orElse: () => countries.first,
+    );
+    selectedCountryId = selected.id;
+    } else {
+    selectedCountryId = '';
+    }
+
+    currentShippingCost = 0.0;
+    });
+
+    if (isLoggedIn) {
+    _estimateShipping();
+    } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+    content: Text(
+    "Please log in to estimate shipping for this country."),
+    ),
+    );
+    }
+    }
+    },
+    ),
+
+    const SizedBox(height: 20),
+
+    if (isShippingLoading)
+    const Center(
+    child: Padding(
+    padding: EdgeInsets.symmetric(vertical: 16.0),
+    child: CircularProgressIndicator(),
+    ),
+    )
+    else if (!isShippingLoading && currentShippingCost > 0)
+    Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16.0),
+    child: Text(
+    "DHL: ₹${currentShippingCost.toStringAsFixed(2)}",
+    style: const TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    color: Colors.black87,
+    ),
+    ),
+    )
+    else if (!isShippingLoading && selectedCountryId.isNotEmpty)
+    Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16.0),
+    child: Text(
+    "No shipping methods available for $selectedCountryName.",
+    style: TextStyle(color: Colors.grey.shade700),
+    ),
+    )
+    else if (!isShippingLoading && selectedCountryId.isEmpty)
+    Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16.0),
+    child: Text(
+    "Select a country to see shipping options.",
+    style: TextStyle(color: Colors.grey.shade700),
+    ),
+    ),
+    ],
+    ),
+    ),
+    ],
+    ),
+    ),
+
+    const SizedBox(height: 20),
+
+    // Order Summary Section
+    Builder(
+    builder: (_) {
+    double subtotal = 0.0;
+    for (var item in cartItems) {
+    final qty = item['qty'] ?? 1;
+    final price = double.tryParse(item['price'].toString()) ?? 0.0;
+    subtotal += price * qty;
+    }
+    final total = subtotal + currentShippingCost;
+
+    return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [
+    BoxShadow(
+    color: Colors.grey.withOpacity(0.1),
+    blurRadius: 5,
+    offset: const Offset(0, 2)),
+    ],
+    ),
+    child: Column(
+    children: [
+    Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+    const Text('Subtotal',
+    style: TextStyle(
+    fontSize: 18, fontWeight: FontWeight.w500)),
+    Text('₹${subtotal.toStringAsFixed(2)}',
+    style: const TextStyle(
+    fontSize: 18, fontWeight: FontWeight.w500)),
+    ],
+    ),
+    const SizedBox(height: 12),
+    const Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+    Text('Duties and Taxes',
+    style:
+    TextStyle(fontSize: 16, color: Colors.black87)),
+    Text('Incl.',
+    style:
+    TextStyle(fontSize: 16, color: Colors.black87)),
+    ],
+    ),
+    const SizedBox(height: 12),
+    Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+    const Text('Shipping (Shipping - DHL)',
+    style: TextStyle(fontSize: 16)),
+    Text(
+    "₹${currentShippingCost.toStringAsFixed(2)}",
+    style: const TextStyle(fontSize: 16),
+    ),
+    ],
+    ),
+    const SizedBox(height: 20),
+    const Divider(thickness: 1),
+    const SizedBox(height: 12),
+    Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+    const Text('Order Total',
+    style: TextStyle(
+    fontSize: 20, fontWeight: FontWeight.bold)),
+    Text('₹${total.toStringAsFixed(2)}',
+    style: const TextStyle(
+    fontSize: 20, fontWeight: FontWeight.bold)),
+    ],
+    ),
+    ],
+    ),
+    );
+    },
+    ),
+
+    const SizedBox(height: 20),
+
+    // Coupon code section
+    Row(
+    children: [
+    Expanded(
+    child: TextField(
+    decoration: InputDecoration(
+    hintText: 'Enter coupon code',
+    border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    contentPadding: const EdgeInsets.symmetric(
+    horizontal: 16, vertical: 12),
+    ),
+    ),
+    ),
+    const SizedBox(width: 12),
+    ElevatedButton(
+    onPressed: () {
+    // handle coupon apply
+    },
+    child: const Text("Apply"),
+    ),
+    ],
+    ),
+
+    const SizedBox(height: 20),
+
+    // Checkout button
+    Center(
+    child: ElevatedButton(
+    onPressed: () {
+    // handle coupon apply
+    },
+    style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.black,           // Set background color to black
+    shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.zero,       // No rounded corners
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16), // Optional padding
+    ),
+    child: const Text(
+    "PROCEED TO CHECKOUT",
+    style: TextStyle(color: Colors.white),    // Text color white for contrast
+    ),
+    ),
+    ),
+
+    ],
+    ),
+    ),
+    )
+        ],
       ),
     );
   }
 
+
+
+  Widget buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: DropdownButtonFormField<String>(
+            value: value.isNotEmpty ? value : null,
+            items: items.map((String item) {
+              return DropdownMenuItem<String>(
+                value: item,
+                child: Text(item),
+              );
+            }).toList(),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
+
+
 }
+
+
+
+
 
 
 

@@ -17,7 +17,7 @@ class _LoginScreen1State extends State<LoginScreen1> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
-
+bool isLoggedIn = false;
   final LoginRepository _loginRepository =
   LoginRepository(baseUrl: 'https://stage.aashniandco.com');
 
@@ -26,6 +26,18 @@ class _LoginScreen1State extends State<LoginScreen1> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+
+  Future<void> userLoggedInSuccessfully() async { // Call this after successful login
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isUserLoggedIn', true);
+    if (mounted) {
+      setState(() {
+        isLoggedIn = true;
+      });
+    }
+    // Cookies are automatically saved by PersistCookieJar after successful login API response
   }
 
   Future<void> _submitForm() async {
@@ -46,6 +58,7 @@ class _LoginScreen1State extends State<LoginScreen1> {
         print("Login token ep>>$token");
 
         if (token != null && token.isNotEmpty) {
+          userLoggedInSuccessfully();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login successful')),
           );
