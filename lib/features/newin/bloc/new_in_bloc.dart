@@ -173,6 +173,9 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
       emit(NewInError("Error: $e"));
     }
   }
+
+
+
   // Future<void> _onFetchNewIn(
   //     FetchNewIn event, Emitter<NewInState> emit) async {
   //   emit(NewInLoading());

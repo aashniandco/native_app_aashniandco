@@ -24,6 +24,27 @@
 //   }
 // }
 
+class Region {
+  final String id;
+  final String code;
+  final String name;
+
+  Region({
+    required this.id,
+    required this.code,
+    required this.name,
+  });
+
+  factory Region.fromJson(Map<String, dynamic> json) {
+    return Region(
+      id: json['id']?.toString() ?? '',
+      code: json['code'] ?? '',
+      name: json['name'] ?? '',
+    );
+  }
+}
+
+
 
 class Country {
   final String id;
@@ -31,6 +52,7 @@ class Country {
   final String threeLetterAbbreviation;
   final String fullNameLocale;
   final String fullNameEnglish;
+  final List<Region> regions;
 
   Country({
     required this.id,
@@ -38,20 +60,52 @@ class Country {
     required this.threeLetterAbbreviation,
     required this.fullNameLocale,
     required this.fullNameEnglish,
+    required this.regions,
   });
 
   factory Country.fromJson(Map<String, dynamic> json) {
-    // Handle cases where 'available_regions' might be missing or null
-    // For this problem, we are not using regions directly from here, but good practice.
+    List<Region> parsedRegions = [];
+    if (json['available_regions'] != null) {
+      parsedRegions = List.from(json['available_regions'])
+          .map((region) => Region.fromJson(region))
+          .toList();
+    }
     return Country(
       id: json['id'] ?? '',
       twoLetterAbbreviation: json['two_letter_abbreviation'] ?? '',
       threeLetterAbbreviation: json['three_letter_abbreviation'] ?? '',
       fullNameLocale: json['full_name_locale'] ?? '',
       fullNameEnglish: json['full_name_english'] ?? '',
+      regions: parsedRegions,
     );
-  }
-}
+
+// class Country {
+//   final String id;
+//   final String twoLetterAbbreviation;
+//   final String threeLetterAbbreviation;
+//   final String fullNameLocale;
+//   final String fullNameEnglish;
+//
+//   Country({
+//     required this.id,
+//     required this.twoLetterAbbreviation,
+//     required this.threeLetterAbbreviation,
+//     required this.fullNameLocale,
+//     required this.fullNameEnglish,
+//   });
+//
+//   factory Country.fromJson(Map<String, dynamic> json) {
+//     // Handle cases where 'available_regions' might be missing or null
+//     // For this problem, we are not using regions directly from here, but good practice.
+//     return Country(
+//       id: json['id'] ?? '',
+//       twoLetterAbbreviation: json['two_letter_abbreviation'] ?? '',
+//       threeLetterAbbreviation: json['three_letter_abbreviation'] ?? '',
+//       fullNameLocale: json['full_name_locale'] ?? '',
+//       fullNameEnglish: json['full_name_english'] ?? '',
+//     );
+//   }
+  }}
 
 // Shipping Method Model (New)
 class ShippingMethod {

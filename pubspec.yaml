@@ -55,6 +55,7 @@ dev_dependencies:
   dio: ^5.2.1
   dio_cookie_manager: ^2.0.0
   cookie_jar: ^3.0.1
+  collection: ^1.17.0
   # panorama: 
   
 
@@ -163,6 +164,7 @@ flutter:
     - assets/bg_cards.jpg
     - assets/shopping_bags.jpg
     - assets/Pop-Up_B.jpg
+    - assets/wedding-curation.jpg
 
   #   - images/a_dot_ham.jpeg
 

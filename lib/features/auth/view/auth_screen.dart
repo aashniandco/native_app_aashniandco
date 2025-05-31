@@ -20,6 +20,7 @@ import 'package:aashni_app/features/newin/bloc/new_in_bloc.dart';
 import '../../designer/bloc/designers_screen.dart';
 import '../../login/view/login_screen.dart';
 import '../../newin/view/new_in_screen.dart';
+import 'home_screen_banner_listing.dart';
 import 'offer_pop_up.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -497,7 +498,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // Keeps track of the selected tab
   int _currentBannerIndex = 0;
-  int _currentBannerIndexSpe=0;// Keeps track of the current banner index
+  int _currentBannerIndexSpe=0;
+  int _currentNewinSliderIndex=0;// Keeps track of the current banner index
   final PageController _pageControllerBanner = PageController();
   final PageController _pageControllerBannerSpe = PageController();
   final PageController _pageControllerShop = PageController();
@@ -557,20 +559,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 
-  final List<String> bannerImages = [
-    'assets/Banner-1.jpg', // Replace with actual banner image paths
-    'assets/Banner-2.jpg',
-    'assets/Banner-3.jpg',
-    'assets/Banner-4.jpg',
-    // 'assets/Banner-5.jpg',
-    // 'assets/Banner-6.jpg',
-    // 'assets/Banner-7.jpg'
+  // final List<String> bannerImages = [
+  //   'assets/Banner-1.jpg', // Replace with actual banner image paths
+  //   'assets/Banner-2.jpg',
+  //   'assets/Banner-3.jpg',
+  //   'assets/Banner-4.jpg',
+  //   // 'assets/Banner-5.jpg',
+  //   // 'assets/Banner-6.jpg',
+  //   // 'assets/Banner-7.jpg'
+  // ];
+
+  final List<Map<String, dynamic>> bannerImages = [
+    {'id': 1545,'image': 'assets/Banner-1.jpg', 'name': 'Ritika Mirchandani',},
+    {'id': 5223,'image': 'assets/Banner-2.jpg', 'name': 'Aditi Gupta',},
+    {'id': 1786,'image': 'assets/Banner-3.jpg', 'name': 'Sue Mue',},
+    {'id': 1512,'image': 'assets/Banner-4.jpg', 'name': 'Elan',},
+    {'id': 1468,'image': 'assets/Banner-5.jpg', 'name': 'Ridhi Mehra',},
   ];
 
-  final List<String> bannerSpeImages = [
-    'assets/Banner-new-1-.jpg',
-    'assets/Banner-SS25-New.jpg',
+//Contemporary Styles
+
+
+
+  final List<Map<String, dynamic>> bannerSpeImages = [
+
+    // {'id': 5994,'image': 'assets/Banner-new-1-.jpg', 'name': 'Wedding Collections',},
+    // {'id': 5994,'image': 'assets/Banner-SS25-New.jpg', 'name': 'uuu',},
+
+    {'id': 5994,'image': 'assets/wedding-curation.jpg', 'name': 'Wedding Collections',},
+
+
   ];
+
 
 
   // Function to handle tab selection
@@ -753,6 +773,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 Widget _buildHomeTab() {
+  double sectionHeight = 350;
   final categories = [
     "New In",
     "Designers",
@@ -777,26 +798,25 @@ Widget _buildHomeTab() {
     {'image': 'assets/Hand-Jewelry.jpg', 'name': 'PEACHOO'},
 
   ];
-  final List<Map<String, String>> designerData = [
-    {'image': 'assets/New-In-1.jpg', 'name': 'DIYARAJVIR'},
-    {'image': 'assets/New-In-2.jpg', 'name': 'DIYARAJVIR'},
-    {'image': 'assets/New-In-3.jpg', 'name': 'SAFAA'},
-    {'image': 'assets/New-In-4.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-5.jpg', 'name': 'DIYARAJVIR'},
-    {'image': 'assets/New-In-6.jpg', 'name': 'DIYARAJVIR'},
-    {'image': 'assets/New-In-7.jpg', 'name': 'SAFAA'},
-    {'image': 'assets/New-In-8.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-9.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-10.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-11.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-12.jpg', 'name': 'PEACHOO'},
-    {'image': 'assets/New-In-13.jpg', 'name': 'PEACHOO'},
+  final List<Map<String, dynamic>> designerData = [
+    {'id': 6220,'image': 'assets/New-In-1.jpg', 'name': 'Iqbal Hussain'},
+    {'id': 3989,'image': 'assets/New-In-3.jpg', 'name': 'Niti Bothra'},
+    {'id': 1545,'image': 'assets/New-In-4.jpg', 'name': 'Asaga'},
+    {'id': 1512,'image': 'assets/New-In-5.jpg', 'name': 'Elan'},
+    {'id': 1545,'image': 'assets/New-In-6.jpg', 'name': 'The Aarya'},
+    {'id': 5974,'image': 'assets/New-In-7.jpg', 'name': 'Capisvirleo'},
+    {'id': 1700,'image': 'assets/New-In-8.jpg', 'name': 'Masumi Mewawalla'},
+    {'id': 3697,'image': 'assets/New-In-9.jpg', 'name': 'Saundh'},
+    {'id': 2053,'image': 'assets/New-In-11.jpg', 'name': 'Seema Thukral'},
+    {'id': 5990,'image': 'assets/New-In-11.jpg', 'name': 'Miku Kumar'},
+    // {'image': 'assets/New-In-12.jpg', 'name': 'PEACHOO'},
+    // {'image': 'assets/New-In-13.jpg', 'name': 'PEACHOO'},
   ];
 
     final readytoShip = [
-    {'image': 'assets/RTS.jpg', 'name': 'Ready To Ship'},
-    {'image': 'assets/Sabya.jpg', 'name': 'SABYASACHI'},
-    {'image': 'assets/Occasion-wear-lehengas.jpeg', 'name': 'OCASSION Wear Lehengas'},
+    {'id': 6018,'image': 'assets/RTS.jpg', 'name': 'Ready To Ship'},
+    {'id': 1475,'image': 'assets/Sabya.jpg', 'name': 'Sabyasachi'},
+    {'id': 5492,'image': 'assets/Occasion-wear-lehengas.jpg', 'name': 'Ocassion Wear Lehengas'},
   ];
 
       final acoEdits = [
@@ -864,54 +884,87 @@ Widget _buildHomeTab() {
         child: SingleChildScrollView(
           child: Column(
             children: [
-    SizedBox(
-    height: 180,
-    width: double.infinity,
-    child:Padding(
-              padding: EdgeInsets.all(8.0), // Adjust padding as needed
-          child: AnimatedSwitcher(
-            duration: Duration(milliseconds: 1000),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            child: Image.asset(
-              bannerImages[_currentBannerIndex],
-              key: ValueKey<int>(_currentBannerIndex),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: 180,
-            ),
-          ),
-        ),
+              SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final selectedBanner = bannerImages[_currentBannerIndex];
 
-  ),
+
+
+                      // 2. Navigate to new screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreenBannerListing(
+                            bannerName: selectedBanner['name']!,
+                            bannerId: selectedBanner['id'],
+                          ),
+                        ),
+                      );
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 1000),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      child: Image.asset(
+                        bannerImages[_currentBannerIndex]['image']!,
+                        key: ValueKey<int>(_currentBannerIndex),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 180,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              ,
 
 
               SizedBox(
                 height: 180,
                 width: double.infinity,
                 child: Padding(
-                  padding: EdgeInsets.all(8.0), // Adjust padding as needed
-                  child: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 1000),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return FadeTransition(opacity: animation, child: child);
+                  padding: const EdgeInsets.all(8.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      final selectedBanner = bannerSpeImages[_currentBannerIndexSpe];
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreenBannerListing(
+                            bannerName: selectedBanner['name']!,
+                            bannerId: selectedBanner['id'],
+                          ),
+                        ),
+                      );
                     },
-                    child: Builder(
-                      builder: (context) {
-                        print("Current banner index: $_currentBannerIndexSpe"); // Debug print
-                        return Image.asset(
-                          bannerSpeImages[_currentBannerIndexSpe],
-                          key: ValueKey<int>(_currentBannerIndexSpe),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 180,
-                        );
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 1000),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: child);
                       },
+                      child: Builder(
+                        builder: (context) {
+                          print("Current banner index: $_currentBannerIndexSpe"); // Debug print
+                          return Image.asset(
+                            bannerSpeImages[_currentBannerIndexSpe]['image']!,
+                            key: ValueKey<int>(_currentBannerIndexSpe),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 180,
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
+              )
+              ,
 
 
 
@@ -920,119 +973,143 @@ Widget _buildHomeTab() {
 
 
               // Add spacing between sections
-              SizedBox(height: 10,),
+
               Column(
                 mainAxisSize: MainAxisSize.min, // Prevent extra spacing
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          alignment: Alignment.centerLeft,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'New In',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 8), // Reduce this if needed
-                              Text(
-                                'New arrivals, now',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'dropping five days a',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'week - discover the',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'latest launches onsite',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'from Monday to',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'friday',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 10), // Reduce this if needed
-                              Text(
-                                'EXPLORE NOW',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  decoration: TextDecoration.underline,
-                                  decorationThickness: 1.5,
-                                  decorationColor: Colors.black,
-                                ),
-                              ),
-                            ],
+
+  Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  Expanded(
+  flex: 2, // Text part
+  child: Container( // This is the TextBlockContainer
+  height: sectionHeight, // <--- FIX 1: Explicitly set height
+  padding: const EdgeInsets.only(left: 16.0, right: 8.0, top: 8.0, bottom: 8.0 /* Optional bottom padding */),
+  alignment: Alignment.topLeft,
+  child: SingleChildScrollView( // <--- FIX 2: Make content scrollable if it overflows
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  // mainAxisAlignment: MainAxisAlignment.start, // Default for Column
+  children: [
+  Text(
+  'New In',
+  style: TextStyle(
+  fontFamily: 'Serif',
+  fontSize: 30,
+  color: Colors.black87,
+  ),
+  ),
+  SizedBox(height: 12),
+  Text(
+  'New arrivals, now dropping five days a week - discover the latest launches onsite from Monday to\nFriday', // Ensure this text isn't unexpectedly long
+  style: TextStyle(
+  fontSize: 14,
+  color: Colors.black87,
+  height: 1.4,
+  ),
+  ),
+  SizedBox(height: 16),
+  InkWell(
+  onTap: () {
+  print("Explore Now tapped!");
+  // Add navigation or other action here
+  },
+  child: Text(
+  'EXPLORE NOW',
+  style: TextStyle(
+  fontSize: 14,
+  color: Colors.black87,
+  fontWeight: FontWeight.w500,
+  decoration: TextDecoration.underline,
+  decorationThickness: 1.0,
+  decorationColor: Colors.black87,
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  ),
+  ),
+          Expanded(
+            flex: 2,
+            child: Container(
+              height: sectionHeight,
+              child: ListView.builder(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                itemCount: designerData.length,
+                padding: EdgeInsets.symmetric(horizontal: 9.0),
+                itemBuilder: (context, index) {
+                  final designer = designerData[index];
+                  final String? imagePath = designer['image'];
+                  final String bannerName = designer['name'] ?? 'No Title';
+                  final int bannerId = designer['id'];
+                  double itemWidth = 200;
+                  double imageHeight = 280;
+
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreenBannerListing(
+                            bannerName: bannerName,
+                            bannerId: bannerId,
                           ),
                         ),
-                      ),
-          Expanded( // Ensure the parent has a fixed size
-            child: FractionallySizedBox(
-              widthFactor: 20/ (4.5+2), // Convert flex-like ratio to fraction
-              child: Container(
-                height: 320, // Ensure height is defined
-                child: ListView.builder(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: designerData.length,
-                  itemBuilder: (context, index) {
-                    final designer = designerData[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      );
+                    },
+                    child: Container(
+                      width: itemWidth,
+                      margin: const EdgeInsets.symmetric(horizontal: 9.0),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          ClipRRect(
+                          (imagePath != null && imagePath.isNotEmpty)
+                              ? ClipRRect(
                             child: Image.asset(
-                              designer['image']!,
-                              width: 200,
-                              height: 300,
+                              imagePath,
+                              width: itemWidth,
+                              height: imageHeight,
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: itemWidth,
+                                  height: imageHeight,
+                                  color: Colors.grey[300],
+                                  child: Center(
+                                    child: Icon(Icons.broken_image,
+                                        color: Colors.grey[600]),
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                              : Container(
+                            width: itemWidth,
+                            height: imageHeight,
+                            color: Colors.grey[200],
+                            child: Center(
+                              child: Icon(Icons.image_not_supported,
+                                  color: Colors.grey[500]),
                             ),
                           ),
+
+                          // 👇 Removed the Text widget displaying designer name
+                          // You can re-enable this later if needed
                         ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
-
-                    ],
-                  ),
+  ],
+  ),
 
                   // Removing any unnecessary space
 
@@ -1046,39 +1123,41 @@ Widget _buildHomeTab() {
 
 
 
-              Container(
-                padding: EdgeInsets.zero, // Ensure no extra padding
-                margin: EdgeInsets.zero, // Ensure no extra margin
-                child: Column(
-                  mainAxisSize: MainAxisSize.min, // Prevent extra vertical space
-                  children: [
-                    ClipRRect(
-                      child: Image.asset(
-                        'assets/RTS.jpg',
-                        width: 350,
-                        height: 380,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    ClipRRect(
-                      child: Image.asset(
-                        'assets/Sabya.jpg',
-                        width: 350,
-                        height: 380,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    ClipRRect(
-                      child: Image.asset(
-                        'assets/Occasion-wear-lehengas.jpg',
-                        width: 350,
-                        height: 380,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+  Container(
+  padding: EdgeInsets.zero,
+  margin: EdgeInsets.zero,
+  child: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: readytoShip.map((item) {
+  final String imagePath = item['image'] as String;
+  final int bannerId = item['id'] as int;
+  final String bannerName = item['name'] as String;
+
+  return GestureDetector(
+  onTap: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(
+  builder: (_) => HomeScreenBannerListing(
+  bannerName: bannerName,
+  bannerId: bannerId,
+  ),
+  ),
+  );
+  },
+  child: ClipRRect(
+  child: Image.asset(
+  imagePath,
+  width: 350,
+  height: 380,
+  fit: BoxFit.cover,
+  ),
+  ),
+  );
+  }).toList(),
+  ),
+  )
+  ,
 
 
              SizedBox(height: 10,),

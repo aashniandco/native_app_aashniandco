@@ -20,7 +20,7 @@ class ApiConstants{
         return "https://dev.aashniandco.com/rest/V1/solr";
 
       case Environment.stage:
-        // return "https://stage.aashniandco.com/rest/V1/solr";
+        return "https://stage.aashniandco.com/rest/V1/solr";
         return "https://stage.aashniandco.com";
       case Environment.prod:
         return "https://aashniandco.com/rest/V1/solr";
