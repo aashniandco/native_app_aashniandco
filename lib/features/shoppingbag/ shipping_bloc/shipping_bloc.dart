@@ -32,7 +32,7 @@ class ShippingBloc extends Bloc<ShippingEvent, ShippingState> {
     emit(ShippingRateLoading());
     try {
       final shippingRepository = ShippingRepository();
-      final shippingRate = await shippingRepository.estimateShipping(event.countryId);
+      final shippingRate = await shippingRepository.estimateShipping(event.countryId,event.weight);
       emit(ShippingRateLoaded(shippingRate!));
     } catch (e) {
       emit(ShippingError("Failed to estimate shipping"));

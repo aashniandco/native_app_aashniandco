@@ -15,6 +15,7 @@ class ShippingRateLoading extends ShippingState {}
 
 class ShippingRateLoaded extends ShippingState {
   final double shippingPrice;
+
   ShippingRateLoaded(this.shippingPrice);
 }
 

@@ -6,6 +6,7 @@ import 'package:aashni_app/features/shoppingbag/shopping_bag.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:http/io_client.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../shoppingbag/ shipping_bloc/shipping_bloc.dart';
 import '../shoppingbag/ shipping_bloc/shipping_event.dart';
@@ -14,6 +15,7 @@ import '../shoppingbag/cart_bloc/cart_bloc.dart';
 import '../shoppingbag/cart_bloc/cart_event.dart';
 import '../shoppingbag/model/countries.dart';
 import '../shoppingbag/repository/cart_repository.dart';
+
 
 class CheckoutScreen extends StatefulWidget {
   @override
@@ -29,6 +31,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _areCountriesLoading = true;
   bool _initialCountryLoadAttempted = false;
   String? _countriesError;
+  int customerId=0;
+
 
   String? _selectedState;
   List<String> _currentStates = [];
@@ -37,6 +41,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String selectedCountryId = '';
   String selectedRegionName = '';
   String selectedRegionId = '';
+  double _cartTotalWeight = 0.0;
 
   bool isUserLoggedIn = false;
   double _grandTotal = 0.0;
@@ -101,6 +106,64 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ];
 
 
+
+  // ✅ Async method to use await
+  Future<void> _loadCustomerIdAndFetchWeight() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cust_id = prefs.getInt('customer_id');
+    print("Stored customer_id: $cust_id");
+
+    if (cust_id != null) {
+      double weight = await fetchCartTotalWeight(cust_id);
+      print("Cart total weight: $weight");
+
+      // You can update state if needed:
+      if (!mounted) return;
+      setState(() {
+        _cartTotalWeight = weight;
+      });
+    } else {
+      print("Customer ID not found in SharedPreferences");
+    }
+  }
+
+  Future<double> fetchCartTotalWeight(int customerId) async {
+    print("checkout >> fetchCartTotalWeightcalled>>");
+
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in");
+    }
+
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+
+    final response = await ioClient.get(
+      Uri.parse('https://stage.aashniandco.com/rest/V1/cart/details/$customerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as List<dynamic>;
+      if (data.isEmpty) {
+        return 0.0;
+      }
+      final firstItem = data[0] as Map<String, dynamic>;
+      final weightStr = firstItem['total_cart_weight'];
+      final totalWeight = double.tryParse(weightStr.toString()) ?? 0.0;
+      print("init fetchCartTotalWeightcalled>>$totalWeight");
+      return totalWeight;
+    } else {
+      throw Exception("Failed to fetch cart total weight: ${response.body}");
+    }
+  }
+
   // Add this method to your _CheckoutScreenState class
   void _selectStandardShippingMethod() {
     if (!mounted) return;
@@ -153,7 +216,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _loadLoginStatus();
     _fetchAndPrintCartItemsDirectly();
     _callAndProcessFetchTotal();
+    _loadCustomerIdAndFetchWeight();
+
+
+
   }
+
+
+
 
   Future<void> _loadShippingPreferencesForCheckout() async {
     if (!mounted) return;
@@ -171,7 +241,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final String? carrierCodeFromPrefs = prefs.getString('shipping_carrier_code'); // Assuming you might save these
     final String? methodCodeFromPrefs = prefs.getString('shipping_method_code');   // Assuming you might save these
 
-
+    print("method code $methodCodeFromPrefs");
+    print("method code $carrierCodeFromPrefs");
+    print("method code $carrierCodeFromPrefs");
     if (kDebugMode) {
       print("--- Loading Shipping Preferences (CheckoutScreen) ---");
       print("API Countries available: ${_apiCountries.length}, Prefs Country: $countryNameFromPrefs (ID: $countryIdFromPrefs), Prefs Region: $regionNameFromPrefs (ID: $regionIdFromPrefs)");
@@ -349,10 +421,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       if (selectedCountryId.isNotEmpty) {
-        _shippingBloc.add(EstimateShipping(selectedCountryId));
+
+        _shippingBloc.add(EstimateShipping(selectedCountryId, _cartTotalWeight));
       }
     });
   }
+
+
+
+
+
+
+
+
 
   Future<void> _callAndProcessFetchTotal() async {
     if (!mounted) return;
@@ -364,6 +445,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() {
           _grandTotal = (totalsObject['grand_total'] as num?)?.toDouble() ?? 0.0;
           _itemsQty = totalsObject['items_qty'] as int? ?? 0;
+
+          // Attempt to extract total weight from the totalsObject
+          // Common keys in Magento for total weight are 'items_weight', 'weight', or 'base_total_weight'
+          // Or it might need to be summed from the 'items' array if present.
+          double calculatedWeight = 0.0;
+          if (totalsObject.containsKey('items_weight') && totalsObject['items_weight'] != null) {
+            calculatedWeight = (totalsObject['items_weight'] as num).toDouble();
+          } else if (totalsObject.containsKey('weight') && totalsObject['weight'] != null) {
+            calculatedWeight = (totalsObject['weight'] as num).toDouble();
+          } else if (totalsObject['items'] is List) {
+            // Fallback: Sum weights from individual items if 'items' array is present
+            for (var item_data in (totalsObject['items'] as List)) {
+              if (item_data is Map<String, dynamic>) {
+                final itemWeight = (item_data['weight'] as num?)?.toDouble() ?? 0.0;
+                final itemQty = (item_data['qty'] as num?)?.toInt() ?? 1;
+                calculatedWeight += (itemWeight * itemQty);
+              }
+            }
+          }
+          _cartTotalWeight = calculatedWeight;
+
+          if (kDebugMode) {
+            print("Cart total weight updated: $_cartTotalWeight");
+          }
+
           if (totalsObject['total_segments'] is List) {
             _fetchTotals = (totalsObject['total_segments'] as List)
                 .map((segment) => segment as Map<String, dynamic>)
@@ -378,6 +484,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         _cartError = e.toString(); _isCartLoading = false;
         _grandTotal = 0.0; _itemsQty = 0; _fetchTotals = [];
+        _cartTotalWeight = 0.0; // Reset weight on error
       });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error loading totals: ${e.toString()}")));
@@ -433,6 +540,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() { isUserLoggedIn = prefs.getBool('isUserLoggedIn') ?? false; });
   }
 
+  // MODIFIED: This method now handles the UI updates synchronously
+  // and then calls an async helper to fetch data.
   void _onCountryChanged(String? newCountryName) {
     if (newCountryName == null || newCountryName == _selectedCountry) return;
 
@@ -444,6 +553,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
+    // --- Start of synchronous state updates ---
+    // This updates the UI immediately for a responsive feel.
     setState(() {
       _selectedApiCountryObject = newSelectedApiCountry;
       _selectedCountry = newSelectedApiCountry!.fullNameEnglish;
@@ -480,12 +591,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         print("Country changed to: $selectedCountryName (ID: $selectedCountryId)");
         print("Shipping methods reset to template. Default selection: $selectedShippingMethodName, Cost: $currentShippingCost");
       }
-
-      if(selectedCountryId.isNotEmpty) {
-        _shippingBloc.add(EstimateShipping(selectedCountryId)); // This will trigger price update via BlocListener
-      }
     });
+    // --- End of synchronous state updates ---
+
+    // --- Start of asynchronous logic ---
+    // Call the helper function to perform async operations without blocking the UI.
+    _fetchWeightAndEstimateShipping(selectedCountryId);
   }
+
+  // NEW: Helper method to fetch weight and trigger shipping estimation.
+  Future<void> _fetchWeightAndEstimateShipping(String countryId) async {
+    if (countryId.isEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cust_id = prefs.getInt('customer_id');
+
+      if (cust_id != null) {
+        // As requested, fetch the weight again to ensure it's up-to-date.
+        final double newWeight = await fetchCartTotalWeight(cust_id);
+        if (!mounted) return;
+
+        // Update the state with the new weight.
+        setState(() {
+          _cartTotalWeight = newWeight;
+        });
+
+        // Dispatch the BLoC event with the fresh data.
+        _shippingBloc.add(EstimateShipping(countryId, newWeight));
+      } else {
+        if (kDebugMode) print("No customer ID found. Estimating shipping with current weight: $_cartTotalWeight");
+        _shippingBloc.add(EstimateShipping(countryId, _cartTotalWeight));
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error fetching weight and estimating shipping: $e");
+      }
+      // Fallback: Dispatch with the current weight to at least try.
+      _shippingBloc.add(EstimateShipping(countryId, _cartTotalWeight));
+    }
+  }
+
 
   Future<void> _saveCurrentSelectionsToPrefs() async {
     if (selectedCountryName.isEmpty) {
@@ -530,82 +676,82 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   @override
-    Widget build(BuildContext context) {
-      return BlocProvider.value(
-        value: _shippingBloc,
-        child: BlocListener<ShippingBloc, ShippingState>(
-            listener: (context, state) {
-              if (!mounted) return;
-              if (state is CountriesLoading) {
-                setState(() {
-                  _areCountriesLoading = true;
-                  _countriesError = null;
-                });
-              } else if (state is CountriesLoaded) {
-                _apiCountries = state.countries;
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _shippingBloc,
+      child: BlocListener<ShippingBloc, ShippingState>(
+        listener: (context, state) {
+          if (!mounted) return;
+          if (state is CountriesLoading) {
+            setState(() {
+              _areCountriesLoading = true;
+              _countriesError = null;
+            });
+          } else if (state is CountriesLoaded) {
+            _apiCountries = state.countries;
+            _areCountriesLoading = false;
+            _initialCountryLoadAttempted = true;
+            _countriesError = null;
+            _loadShippingPreferencesForCheckout();
+          } else if (state is ShippingError) {
+            // Handle Shipping Estimation Errors
+            if (state.message == "Failed to estimate shipping") {
+              if (kDebugMode) print("Shipping estimation failed via BLoC. Defaulting to Standard Shipping.");
+              _selectStandardShippingMethod();
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message + ". Defaulted to Standard Shipping.")));
+            } else { // Handle other errors, e.g., country loading
+              setState(() {
                 _areCountriesLoading = false;
                 _initialCountryLoadAttempted = true;
-                _countriesError = null;
-                _loadShippingPreferencesForCheckout();
-              } else if (state is ShippingError) {
-                // Handle Shipping Estimation Errors
-                if (state.message == "Failed to estimate shipping") {
-                  if (kDebugMode) print("Shipping estimation failed via BLoC. Defaulting to Standard Shipping.");
-                  _selectStandardShippingMethod();
-                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message + ". Defaulted to Standard Shipping.")));
-                } else { // Handle other errors, e.g., country loading
-                  setState(() {
-                    _areCountriesLoading = false;
-                    _initialCountryLoadAttempted = true;
-                    if (_apiCountries.isEmpty) { // Likely a country loading error
-                      _countriesError = state.message;
-                    }
-                  });
-                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+                if (_apiCountries.isEmpty) { // Likely a country loading error
+                  _countriesError = state.message;
                 }
-              } else if (state is ShippingRateLoading) {
-                if (kDebugMode) print("Shipping rate is loading (event from BLoC)...");
-              } else if (state is ShippingRateLoaded) {
-                if (kDebugMode) print("Shipping rate loaded event received (from BLoC). Price: ${state.shippingPrice}");
-                setState(() {
-                  int updatableMethodIndex = _displayableShippingMethods.indexWhere(
-                          (m) => m['is_api_updatable'] == true);
+              });
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            }
+          } else if (state is ShippingRateLoading) {
+            if (kDebugMode) print("Shipping rate is loading (event from BLoC)...");
+          } else if (state is ShippingRateLoaded) {
+            if (kDebugMode) print("Shipping rate loaded event received (from BLoC). Price: ${state.shippingPrice}");
+            setState(() {
+              int updatableMethodIndex = _displayableShippingMethods.indexWhere(
+                      (m) => m['is_api_updatable'] == true);
 
-                  // Always update the display price of the API-updatable method in the list
-                  if (updatableMethodIndex != -1) {
-                    _displayableShippingMethods[updatableMethodIndex]['price_val'] = state.shippingPrice;
-                    _displayableShippingMethods[updatableMethodIndex]['price_str'] = '₹${state.shippingPrice.toStringAsFixed(2)}';
-                    if (kDebugMode) {
-                      print("Updated API-driven shipping method's display price to: ${state.shippingPrice}");
-                    }
-                  } else {
-                    if (kDebugMode) print("No method flagged as 'is_api_updatable' found. Cannot update display price from API.");
-                  }
-
-                  // Now, decide on the *selected* shipping method
-                  if (state.shippingPrice <= 0) {
-                    if (kDebugMode) print("API returned shipping price <= 0 (${state.shippingPrice}). Defaulting selection to Standard Shipping.");
-                    _selectStandardShippingMethod(); // This updates _selectedShippingMethodIndex, currentShippingCost etc.
-                  } else {
-                    // API price is > 0.
-                    // If the API-updatable method was already selected by the user, update its currentShippingCost.
-                    // Otherwise, the user's current selection (e.g., Standard if they picked it) remains.
-                    if (updatableMethodIndex != -1 && _selectedShippingMethodIndex == _displayableShippingMethods[updatableMethodIndex]['id']) {
-                      currentShippingCost = state.shippingPrice;
-                      if (kDebugMode) {
-                        print("API-driven method is selected and price > 0. Updated currentShippingCost to: ${state.shippingPrice}");
-                      }
-                    } else {
-                      if (kDebugMode && updatableMethodIndex != -1) { // Check if updatableMethodIndex is valid
-                        print("API price > 0. Current selection (${selectedShippingMethodName}) is not the API-updatable method ('${_displayableShippingMethods[updatableMethodIndex]['title']}'). Selection and cost remain based on user's choice.");
-                      } else if (kDebugMode) {
-                        print("API price > 0. No API-updatable method or current selection is not it. Selection and cost remain based on user's choice.");
-                      }
-                    }
-                  }
-                });
+              // Always update the display price of the API-updatable method in the list
+              if (updatableMethodIndex != -1) {
+                _displayableShippingMethods[updatableMethodIndex]['price_val'] = state.shippingPrice;
+                _displayableShippingMethods[updatableMethodIndex]['price_str'] = '₹${state.shippingPrice.toStringAsFixed(2)}';
+                if (kDebugMode) {
+                  print("Updated API-driven shipping method's display price to: ${state.shippingPrice}");
+                }
+              } else {
+                if (kDebugMode) print("No method flagged as 'is_api_updatable' found. Cannot update display price from API.");
               }
-            },
+
+              // Now, decide on the *selected* shipping method
+              if (state.shippingPrice <= 0) {
+                if (kDebugMode) print("API returned shipping price <= 0 (${state.shippingPrice}). Defaulting selection to Standard Shipping.");
+                _selectStandardShippingMethod(); // This updates _selectedShippingMethodIndex, currentShippingCost etc.
+              } else {
+                // API price is > 0.
+                // If the API-updatable method was already selected by the user, update its currentShippingCost.
+                // Otherwise, the user's current selection (e.g., Standard if they picked it) remains.
+                if (updatableMethodIndex != -1 && _selectedShippingMethodIndex == _displayableShippingMethods[updatableMethodIndex]['id']) {
+                  currentShippingCost = state.shippingPrice;
+                  if (kDebugMode) {
+                    print("API-driven method is selected and price > 0. Updated currentShippingCost to: ${state.shippingPrice}");
+                  }
+                } else {
+                  if (kDebugMode && updatableMethodIndex != -1) { // Check if updatableMethodIndex is valid
+                    print("API price > 0. Current selection (${selectedShippingMethodName}) is not the API-updatable method ('${_displayableShippingMethods[updatableMethodIndex]['title']}'). Selection and cost remain based on user's choice.");
+                  } else if (kDebugMode) {
+                    print("API price > 0. No API-updatable method or current selection is not it. Selection and cost remain based on user's choice.");
+                  }
+                }
+              }
+            });
+          }
+        },
 
         child: Scaffold(
           appBar: AppBar(

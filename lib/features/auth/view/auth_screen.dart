@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:aashni_app/bloc/login/login_screen_bloc.dart';
 import 'package:aashni_app/features/signup/view/signup_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,6 +24,8 @@ import '../../login/view/login_screen.dart';
 import '../../newin/view/new_in_screen.dart';
 import 'home_screen_banner_listing.dart';
 import 'offer_pop_up.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   final int initialTabindex;
@@ -38,9 +42,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   String? _firstName;
   String? _lastName;
 
+  int cartQty = 0;
+
   @override
   void initState() {
     super.initState();
+    _fetchCartQuantity();
     _loadUserInfo();
     _tabBloc = TabBloc();
     _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTabindex);
@@ -52,11 +59,56 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     });
   }
 
+  Future<void> _fetchCartQuantity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customerToken = prefs.getString('user_token');
+
+      if (customerToken == null || customerToken.isEmpty) {
+        setState(() {
+          cartQty = 0;
+        });
+        return;
+      }
+
+      HttpClient httpClient = HttpClient();
+      httpClient.badCertificateCallback = (cert, host, port) => true;
+      IOClient ioClient = IOClient(httpClient);
+
+      final response = await ioClient.get(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+        headers: {
+          'Authorization': 'Bearer $customerToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final int itemsCount = data['items_count'] ?? 0;
+        setState(() {
+          cartQty = itemsCount;
+        });
+      } else {
+        print('Failed to fetch cart: ${response.body}');
+        setState(() {
+          cartQty = 0;
+        });
+      }
+    } catch (e) {
+      print('Error fetching cart quantity: $e');
+      setState(() {
+        cartQty = 0;
+      });
+    }
+  }
+
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _firstName = prefs.getString('user_firstname');
       _lastName = prefs.getString('user_lastname');
+
     });
   }
 
@@ -132,7 +184,45 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
               },
             ),
             IconButton(
-              icon: const Icon(Icons.shopping_bag_rounded),
+              icon: IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.shopping_bag_rounded, color: Colors.black),
+                    if (cartQty > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            '$cartQty',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ShoppingBagScreen()),
+                  );
+                },
+              ),
               onPressed: () {
                 Navigator.push(
                   context,

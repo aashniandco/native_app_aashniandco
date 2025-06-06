@@ -32,13 +32,17 @@ class CartRepository {
 
 
     if (response.statusCode == 200) {
+      print("cart body: ${response.body}");
       return json.decode(response.body);
-    } else {
+
+    }
+
+    else {
       throw Exception("Failed to fetch cart items: ${response.body}");
     }
   }
 
-  Future<List<dynamic>> fetchTotal() async{
+  Future<Map<String, dynamic>> fetchTotal() async {
     final prefs = await SharedPreferences.getInstance();
     final customerToken = prefs.getString('user_token');
 
@@ -54,19 +58,50 @@ class CartRepository {
       },
     );
 
-
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      final data = json.decode(response.body);
+      print("Total cart weight: ${data['weight']}");
+      return data;
     } else {
-      throw Exception("Failed to fetch cart items: ${response.body}");
+      throw Exception("Failed to fetch cart total: ${response.body}");
     }
-
-
   }
+
 
   Future<List<Map<String, dynamic>>> getCartItems() async {
     final rawItems = await fetchCartItems();
     return rawItems.cast<Map<String, dynamic>>();
+  }
+
+
+  Future<double> fetchCartTotalWeight(int customerId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in");
+    }
+
+    final response = await ioClient.get(
+      Uri.parse('https://stage.aashniandco.com/rest/V1/cart/details/$customerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as List<dynamic>;
+      if (data.isEmpty) {
+        return 0.0;
+      }
+      final firstItem = data[0] as Map<String, dynamic>;
+      final weightStr = firstItem['total_cart_weight'];
+      final totalWeight = double.tryParse(weightStr.toString()) ?? 0.0;
+      return totalWeight;
+    } else {
+      throw Exception("Failed to fetch cart total weight: ${response.body}");
+    }
   }
 
 
