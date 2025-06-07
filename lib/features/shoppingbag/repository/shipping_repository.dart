@@ -374,7 +374,7 @@ print("called>>>>>>>>>>>");
 
     print('--- ShippingRepository: Attempting to estimate shipping ---');
     print('Country ID: $countryId, Region ID (hardcoded): $regionId, Cart Weight: $cartWeight');
-    print('Request URL: $shippingUrl');
+    print('Request URL>>>>>: $shippingUrl');
     print('Customer Token: $customerToken');
     print('-------------------------------------------------------------');
 

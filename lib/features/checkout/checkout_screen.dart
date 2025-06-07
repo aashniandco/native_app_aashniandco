@@ -110,8 +110,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ✅ Async method to use await
   Future<void> _loadCustomerIdAndFetchWeight() async {
     final prefs = await SharedPreferences.getInstance();
-    final cust_id = prefs.getInt('customer_id');
-    print("Stored customer_id: $cust_id");
+    final cust_id = prefs.getInt('user_customer_id');
+    print("Stored customer_id>>>>>: $cust_id");
 
     if (cust_id != null) {
       double weight = await fetchCartTotalWeight(cust_id);
@@ -605,7 +605,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cust_id = prefs.getInt('customer_id');
+      final cust_id = prefs.getInt('user_customer_id');
 
       if (cust_id != null) {
         // As requested, fetch the weight again to ensure it's up-to-date.

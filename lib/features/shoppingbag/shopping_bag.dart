@@ -127,8 +127,8 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
 
   Future<void> _loadCustomerIdAndFetchWeight() async {
     final prefs = await SharedPreferences.getInstance();
-    final cust_id = prefs.getInt('customer_id');
-    print("Stored customer_id: $cust_id");
+    final cust_id = prefs.getInt('user_customer_id');
+    print("Stored customer_id>>>: $cust_id");
 
     if (cust_id != null) {
       double weight = await fetchCartTotalWeight(cust_id);
@@ -264,7 +264,7 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
     int fetchedCustomerId = id ?? 0; // Use 0 if null or handle as needed
 
 
-    print("cust>> initial class member customer_id: ${this.customer_id}"); // See initial value
+    print("cust>> initial class member customer_id: ${customer_id}"); // See initial value
 
 
     if (mounted) { // Good practice to check if widget is still in the tree
@@ -1214,120 +1214,74 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
       ),
       body: Column(
         children: [
+          // ... inside your build method ...
+
           Expanded(
-            child:BlocConsumer<CartBloc, CartState>(
-              // The LISTENER is for side-effects like fetching data
-              listener: (context, state) {
-                // We only want to fetch the weight AFTER the cart has been loaded or updated.
-                // The CartLoaded state is the perfect trigger for this.
-                if (state is CartLoaded) {
-                  print("Cart is loaded or updated. Fetching weight and shipping rates...");
-                  _loadCustomerIdAndFetchWeight();
-                }
-              },
-              // The BUILDER is for creating UI. Your existing code goes here.
+            child: BlocBuilder<CartBloc, CartState>( // <-- Change to BlocBuilder
+              // The builder is for creating UI. Your existing code goes here.
               builder: (context, state) {
                 if (state is CartLoading) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (state is CartLoaded) {
+                  // ✅ The state now contains the most up-to-date items AND weight.
+                  // You can now pass state.totalCartWeight to your shipping logic.
                   final cartItems = state.items;
+
+                  // When you update cart items, the BLoC will emit a new CartLoaded state,
+                  // which will trigger this builder, automatically updating the shipping estimate.
+                  // You may need to update the _cartTotalWeight variable from this state.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _cartTotalWeight != state.totalCartWeight) {
+                      setState(() {
+                        _cartTotalWeight = state.totalCartWeight;
+                      });
+                      // Re-estimate shipping whenever the weight from the BLoC changes.
+                      _estimateShipping();
+                    }
+                  });
+
 
                   if (cartItems.isEmpty) {
                     return const Center(child: Text("Your cart is empty."));
                   }
 
-                  // The ListView.builder remains exactly the same
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(12),
                     itemCount: cartItems.length,
                     itemBuilder: (context, index) {
                       final item = cartItems[index];
+                      // The item['qty'] here will now be correctly updated on rebuild
                       return CartItemWidget(
                         key: ValueKey(item['item_id']),
                         item: item,
-                          onAdd: () {
-                            context.read<CartBloc>().add(
-                              UpdateCartItemQty(item['item_id'], (item['qty'] ?? 1) + 1),
-                            );
-
-
-                            // _loadUserNames().then((fetchedId) async {
-                            //   customer_id = fetchedId;
-                            //
-                            //
-                            //   // 🔁 Wait for updated cart weight
-                            //   final weight = await fetchCartTotalWeight(customer_id);
-                            //   setState(() {
-                            //     totalCartWeight = weight; // ✅ update the class variable
-                            //   });
-                            //
-                            //
-                            //   print("Updated weight after quantity change: $totalCartWeight");
-                            //
-                            //
-                            //   // 🔁 Estimate shipping based on updated weight
-                            //   await _estimateShipping();
-                            // });
-                          },
+                        onAdd: () {
+                          context.read<CartBloc>().add(
+                            UpdateCartItemQty(item['item_id'], (item['qty'] ?? 1) + 1),
+                          );
+                        },
                         onRemove: () {
                           if ((item['qty'] ?? 1) > 1) {
                             context.read<CartBloc>().add(
                               UpdateCartItemQty(item['item_id'], (item['qty'] ?? 1) - 1),
                             );
-                            // 👈 call after remove_initializeShoppingBagData();
-                            _loadUserNames().then((fetchedId) async {
-                              customer_id = fetchedId;
-
-
-                              // 🔁 Wait for updated cart weight
-                              final weight = await fetchCartTotalWeight(customer_id);
-                              setState(() {
-                                totalCartWeight = weight; // ✅ update the class variable
-                              });
-
-
-                              print("Updated weight after quantity change: $totalCartWeight");
-
-
-                              // 🔁 Estimate shipping based on updated weight
-                              await _estimateShipping();
-                            });
                           }
                         },
                         onDelete: () {
                           context.read<CartBloc>().add(RemoveCartItem(item['item_id']));
-                          _loadUserNames().then((fetchedId) async {
-                            customer_id = fetchedId;
-
-
-                            // 🔁 Wait for updated cart weight
-                            final weight = await fetchCartTotalWeight(customer_id);
-                            setState(() {
-                              totalCartWeight = weight; // ✅ update the class variable
-                            });
-
-
-                            print("Updated weight after quantity change: $totalCartWeight");
-
-
-                            // 🔁 Estimate shipping based on updated weight
-                            await _estimateShipping();
-                          }); // 👈 call after delete
                         },
                       );
                     },
                   );
-                  ;
                 } else if (state is CartError) {
                   return Center(child: Text("Error: ${state.message}"));
-                } else if (state is CartItemRemoved || state is CartItemUpdated) {
-                  return const Center(child: CircularProgressIndicator());
                 }
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: Text("Welcome! Your cart is loading.")); // Default case
               },
             ),
           ),
+
+// ... rest of your UI,
 
 
           // Wrap bottom container inside BlocBuilder and Flexible to make height dynamic
