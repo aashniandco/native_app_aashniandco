@@ -52,6 +52,8 @@ import 'package:aashni_app/features/newin/bloc/new_in_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+// import 'package:flutter_stripe/flutter_stripe.dart';
 import 'app/app.dart';
 
 // Import your repositories
@@ -71,6 +73,8 @@ import 'features/signup/view/signup_screen.dart';
 
 void main() {
   ApiConstants.setEnvironment(Environment.stage);
+
+  Stripe.publishableKey = 'pk_test_CjTXZoMy2Ax0gA2xZbf3F99u00fGR7Cnph';
 
   // --- 1. Create your repository instances here ---
   // These will be shared with any BLoC that needs them.

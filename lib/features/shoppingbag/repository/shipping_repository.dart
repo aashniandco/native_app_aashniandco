@@ -244,8 +244,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../ shipping_bloc/shipping_event.dart';
 
 class ShippingRepository {
   final IOClient ioClient;
@@ -431,6 +434,294 @@ print("called>>>>>>>>>>>");
       throw Exception("Failed to estimate shipping: Unexpected response format - ${response.body}");
     }
   }
+
+
+  Future<List<Map<String, dynamic>>> fetchAvailableShippingMethods({
+    required String countryId,
+    required String regionId,
+    required String regionCode,
+    required String regionName,
+    required String postcode,
+    required String city,
+    required String street,
+    required String firstname,
+    required String lastname,
+    required String telephone,
+  }) async {
+    if (kDebugMode) {
+      print("--- ShippingRepository: Fetching available shipping methods ---");
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in");
+    }
+
+    // Construct the payload for the API
+    final payload = {
+      "address": {
+        "region": regionName,
+        "region_id": int.tryParse(regionId) ?? 0,
+        "region_code": regionCode,
+        "country_id": countryId,
+        "postcode": postcode,
+        "city": city,
+        "street": [street],
+        "firstname": firstname,
+        "lastname": lastname,
+        "telephone": telephone,
+      }
+    };
+
+    if (kDebugMode) {
+      print("Request Payload: ${json.encode(payload)}");
+    }
+
+    final url = Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods');
+    final response = await this.ioClient.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+      body: json.encode(payload),
+    );
+
+    if (kDebugMode) {
+      print("API Response Status: ${response.statusCode}");
+      print("API Response Body: ${response.body}");
+    }
+
+    if (response.statusCode == 200) {
+      final List<dynamic> responseData = json.decode(response.body);
+      // Convert the list of dynamic to a list of maps
+      return responseData.map((item) => item as Map<String, dynamic>).toList();
+    } else {
+      final errorBody = json.decode(response.body);
+      throw Exception(errorBody['message'] ?? "Failed to fetch shipping methods.");
+    }
+  }
+
+
+// ✅ REPLACE your repository method with this corrected version
+
+  Future<Map<String, dynamic>> submitShippingInformation(SubmitShippingInfo event) async {
+    if (kDebugMode) {
+      print("--- ShippingRepository: Submitting shipping information ---");
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in for submitting shipping info");
+    }
+
+    // This part is fine. It builds the address object.
+    final addressPayload = {
+      "region": event.regionName,
+      "region_id": int.tryParse(event.regionId) ?? 0,
+      "region_code": event.regionCode,
+      "country_id": event.countryId,
+      "street": [event.streetAddress],
+      "postcode": event.zipCode,
+      "city": event.city,
+      "firstname": event.firstName,
+      "lastname": event.lastName,
+      "email": event.email.isNotEmpty ? event.email : "mitesh@gmail.com",
+      "telephone": event.phone,
+    };
+
+    // ✅ --- START OF THE FIX ---
+    // The structure of the main request body needs to be corrected.
+    final Map<String, dynamic> requestBody = {
+      "addressInformation": {
+        "shipping_address": addressPayload,
+        "billing_address": addressPayload, // Using the same address for billing
+
+        // The keys must be prefixed with "shipping_" and be at this level.
+        "shipping_carrier_code": event.carrierCode,
+        "shipping_method_code": event.methodCode,
+      }
+    };
+    // ✅ --- END OF THE FIX ---
+
+    if (kDebugMode) {
+      print("Final Payload Check: ${json.encode(requestBody)}");
+    }
+
+    final url = Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/shipping-information');
+    final response = await this.ioClient.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+      body: json.encode(requestBody),
+    );
+
+    if (kDebugMode) {
+      print("API Response Status: ${response.statusCode}");
+      print("API Response Body: ${response.body}");
+      print("---------------------------------------------------------");
+    }
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = json.decode(response.body);
+      // Check for a more specific error message from Magento
+      String errorMessage = 'Failed to save address. Please check the details and try again.';
+      if (errorBody['message'] != null) {
+        errorMessage = errorBody['message'];
+        // Check for parameter details which can be very helpful
+        if (errorBody['parameters'] != null && errorBody['parameters'] is Map) {
+          errorMessage += " Details: ${errorBody['parameters']}";
+        }
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+// In your shipping_repository.dart
+
+// ✅ REPLACE your existing method with this more robust version
+
+  // ✅ REPLACE your entire repository method with this one.
+
+  // ✅ REPLACE your repository method with this one, which includes the new debugging step.
+
+  // ✅ REPLACE your repository method with this corrected version
+
+  // lib/features/shoppingbag/repository/shipping_repository.dart
+
+  Future<int> submitPaymentInformation(SubmitPaymentInfo event) async {
+    if (kDebugMode) print("--- ShippingRepository: Submitting Payment Info ---");
+
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null) throw Exception("User not logged in.");
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $customerToken',
+    };
+
+    try {
+      // This debugging is fine, leave it as is.
+      final cartDetailsResponse = await ioClient.get(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+        headers: headers,
+      );
+      if (cartDetailsResponse.statusCode == 200) {
+        final cartData = json.decode(cartDetailsResponse.body);
+        final cartId = cartData['id'];
+        if (kDebugMode) print("✅ Cart ID: $cartId");
+      }
+
+      final paymentMethodsResponse = await ioClient.get(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/payment-methods'),
+        headers: headers,
+      );
+      if (kDebugMode) print("✅ Payment methods: ${paymentMethodsResponse.body}");
+
+      // --- This sanitation logic is correct ---
+      Map<String, dynamic> sanitizedBillingAddress = Map.from(event.billingAddress);
+      if (sanitizedBillingAddress['street'] is Set) {
+        if (kDebugMode) print("Warning: 'street' field was a Set. Converting to List.");
+        sanitizedBillingAddress['street'] = (sanitizedBillingAddress['street'] as Set).toList();
+      }
+
+      // ✅ START OF THE FIX: Correctly build the payload
+      final payload = {
+        "paymentMethodCode": event.paymentMethodCode,
+        "billingAddress": sanitizedBillingAddress,
+        // The backend function is expecting a top-level parameter
+        // named 'paymentMethodNonce', not a nested object.
+        "paymentMethodNonce": event.paymentMethodNonce
+      };
+      // final payload = {
+      //   "paymentMethodCode": event.paymentMethodCode,
+      //   "billingAddress": sanitizedBillingAddress,
+      //   "paymentMethodData": {
+      //     "type": "card",
+      //     "card": {
+      //       "token": event.paymentMethodNonce
+      //     }
+      //   }
+      // };
+
+      // ✅ END OF THE FIX
+
+      if (kDebugMode) print("Final Corrected Payload: ${json.encode(payload)}");
+
+      final response = await ioClient.post(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/aashni/place-order'),
+        headers: headers,
+        body: json.encode(payload),
+      );
+
+      if (kDebugMode) {
+        print("Payment API Status (POST): ${response.statusCode}");
+        print("Payment API Body (POST): ${response.body}");
+      }
+
+      if (response.statusCode == 200) {
+        final responseBody = json.decode(response.body);
+        return int.parse(responseBody.toString());
+      } else {
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['message'] ?? 'Failed to place order.');
+      }
+
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print("❌ Exception during payment info submission: $e");
+        print("StackTrace: $stackTrace");
+      }
+      rethrow;
+    }
+  }
+
+// Future<int> submitPaymentInformation(SubmitPaymentInfo event) async {
+  //   if (kDebugMode) print("--- ShippingRepository: Submitting Payment Info ---");
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final customerToken = prefs.getString('user_token');
+  //   if (customerToken == null) throw Exception("User not logged in.");
+  //
+  //   final payload = {
+  //     "paymentMethod": {"method": event.paymentMethodCode},
+  //     "billing_address": event.billingAddress
+  //   };
+  //
+  //   if (kDebugMode) print("Payment Payload: ${json.encode(payload)}");
+  //
+  //   final response = await ioClient.post(
+  //     Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/payment-information'),
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       'Authorization': 'Bearer $customerToken',
+  //     },
+  //     body: json.encode(payload),
+  //   );
+  //
+  //   if (kDebugMode) {
+  //     print("Payment API Status: ${response.statusCode}");
+  //     print("Payment API Body: ${response.body}");
+  //   }
+  //
+  //   if (response.statusCode == 200) {
+  //     // Magento returns the order ID directly in the response body
+  //     return int.parse(response.body);
+  //   } else {
+  //     final errorBody = json.decode(response.body);
+  //     throw Exception(errorBody['message'] ?? 'Failed to place order.');
+  //   }
+  // }
 
   // Optional: An orchestrating method
   // This is how you would typically use the above methods together.

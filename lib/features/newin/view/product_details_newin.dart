@@ -213,30 +213,49 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
 
       final matchedSku = matchedChild['sku'];
       print("Selected SKU: $matchedSku");
-
+      String? quoteId;
       // Step 3: Get current customer's cart ID (quote_id)
-      final cartResponse = await ioClient.get(
-        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $customerToken',
-        },
-      );
-
-      if (cartResponse.statusCode != 200) {
-        print("Failed to fetch cart: ${cartResponse.body}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to get user cart.')),
+      try {
+        final cartResponse = await ioClient.get(
+          Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $customerToken',
+          },
         );
-        return;
+        if (cartResponse.statusCode == 200) {
+          final cartJson = json.decode(cartResponse.body);
+          quoteId = cartJson['id'].toString();
+          print("Found existing cart (quote) ID: $quoteId");
+        } else {
+          // If status is not 200, it means no active cart.
+          // We will let the 'catch' block handle creating a new one.
+          throw Exception('No active cart found.');
+        }
+      } catch (e) {
+        // Step 3b: CATCH the error and CREATE a new cart.
+        print("No active cart found. Creating a new one...");
+        final createCartResponse = await ioClient.post(
+          Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine'),
+          headers: { 'Authorization': 'Bearer $customerToken' },
+          // The body is empty for this request
+        );
+
+        if (createCartResponse.statusCode == 200) {
+          quoteId = json.decode(createCartResponse.body).toString();
+          print("Created new cart (quote) ID: $quoteId");
+        } else {
+          print("Failed to create a new cart: ${createCartResponse.body}");
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error creating cart.')));
+          return; // Stop if we can't create a cart
+        }
       }
 
-      final cartJson = json.decode(cartResponse.body);
-
-      // Extract only the cart ID, which Magento expects as string
-      final quoteId = cartJson['id'].toString();
-      print("Cart (quote) ID: $quoteId");
-
+      // If we reach here, we are GUARANTEED to have a valid quoteId.
+      if (quoteId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not get or create a cart.')));
+        return;
+      }
       // Step 4: Add product to cart
       final addToCartResponse = await ioClient.post(
         Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/items'),
@@ -319,7 +338,7 @@ class _ProductDetailNewInDetailScreenState extends State<ProductDetailNewInDetai
           cartQty = itemsCount;
         });
       } else {
-        print('Failed to fetch cart: ${response.body}');
+        print('Failed to fetch cart>>_fetchCartQuantity: ${response.body}');
         setState(() {
           cartQty = 0;
         });

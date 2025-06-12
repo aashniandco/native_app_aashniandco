@@ -64,6 +64,7 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
 
   String carrierCode = '';
   String methodCode = '';
+  String countryCode= '';
 
 
 
@@ -200,7 +201,7 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
     await prefs.setString('selected_region_id', selectedRegionId);
 
 
-    print("Saved Shipping Preferences: cost=$currentShippingCost, name='$selectedShippingMethodName', carrier='$carrierCode', method='$methodCode'");
+    print("Saved Shipping Preferences: cost=$currentShippingCost, name='$selectedShippingMethodName', carrier='$carrierCode', method='$methodCode',country_id='$countryCode'");
   }
 
 
@@ -1327,6 +1328,7 @@ class _ShoppingBagScreenState extends State<ShoppingBagScreen> {
                                     setState(() {
                                       selectedCountryName = countries.first.fullNameEnglish;
                                       selectedCountryId = countries.first.id;
+                                      print("selectedCountryId>>>>$selectedCountryId ");
                                       if (selectedCountryId != null && selectedCountryId!.isNotEmpty && isLoggedIn && totalCartWeight > 0) { // Condition for weight > 0
                                         print("BlocBuilder (CountriesLoaded): Dispatching EstimateShipping with countryId: $selectedCountryId, weight: $totalCartWeight");
                                         _shippingBloc.add(

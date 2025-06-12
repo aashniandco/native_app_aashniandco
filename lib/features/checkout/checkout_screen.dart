@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:http/io_client.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../Payment/view/payment_screen.dart';
 import '../shoppingbag/ shipping_bloc/shipping_bloc.dart';
 import '../shoppingbag/ shipping_bloc/shipping_event.dart';
 import '../shoppingbag/ shipping_bloc/shipping_state.dart';
@@ -32,7 +33,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _initialCountryLoadAttempted = false;
   String? _countriesError;
   int customerId=0;
-
+  String selectedRegionCode= '';
+  bool _isSubmitting = false;
+  String? _selectedShippingMethodId;
 
   String? _selectedState;
   List<String> _currentStates = [];
@@ -51,21 +54,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double currentShippingCost = 0.0;
   String carrierCode = '';
   String methodCode = '';
+  bool _isFetchingShippingMethods = false;
 
   // Keep your original template
+// Update your initial template with String IDs
+
   static const List<Map<String, dynamic>> _initialShippingMethodsTemplate = [
     {
-      'id': 0,
-      'price_str': '₹1,500.00', // Default/initial price string
-      'price_val': 1500.0,    // Default/initial price value
+      // ✅ FIX: Use a unique string ID
+      'id': 'dhl_express',
+      'price_str': '₹1,500.00',
+      'price_val': 1500.0,
       'title': 'DHL',
       'carrier': 'Express',
-      'carrier_code': 'dhl',
-      'method_code': 'express',
-      'is_api_updatable': true // Flag to identify which method's price is updated by API
+      'carrier_code': 'tablerate',
+      'method_code': 'bestway',
+      'is_api_updatable': true
     },
     {
-      'id': 1,
+      // ✅ FIX: Use a unique string ID
+      'id': 'freeshipping_freeshipping',
       'price_str': '₹0.00',
       'price_val': 0.0,
       'title': 'Standard',
@@ -107,6 +115,139 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
 
 
+  // ✅ ADD THIS NEW METHOD TO _CheckoutScreenState
+
+  Future<void> fetchAndDisplayShippingMethods() async {
+    // --- 1. Validation ---
+    // Ensure we have enough information to make the call.
+    if (selectedCountryId.isEmpty ||
+        selectedRegionId.isEmpty ||
+        _firstNameController.text.isEmpty ||
+        _lastNameController.text.isEmpty ||
+        _streetAddressController.text.isEmpty ||
+        _cityController.text.isEmpty ||
+        _zipController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      if (kDebugMode) {
+        print("Shipping estimation skipped: Address form is incomplete.");
+      }
+      // Clear any previously fetched methods if the address is no longer valid
+      setState(() {
+        _displayableShippingMethods = [];
+      });
+      return;
+    }
+
+    // Show a loading indicator in the UI (optional but recommended)
+    setState(() {
+      // You could set a new bool `_isFetchingRates = true;` here if you want a dedicated loader
+    });
+
+    try {
+      // --- 2. Get Auth Token ---
+      final prefs = await SharedPreferences.getInstance();
+      final customerToken = prefs.getString('user_token');
+      if (customerToken == null || customerToken.isEmpty) {
+        throw Exception("User not logged in");
+      }
+
+      // --- 3. Build the Payload ---
+      final payload = {
+        "address": {
+          "region": selectedRegionName,
+          "region_id": int.tryParse(selectedRegionId) ?? 0,
+          "region_code": selectedRegionCode,
+          "country_id": selectedCountryId,
+          "postcode": _zipController.text,
+          "city": _cityController.text,
+          "street": [_streetAddressController.text],
+          "firstname": _firstNameController.text,
+          "lastname": _lastNameController.text,
+          "telephone": _phoneController.text,
+        }
+      };
+
+      if (kDebugMode) {
+        print("--- Fetching available shipping methods ---");
+        print("Request Payload: ${json.encode(payload)}");
+      }
+
+      // --- 4. Make the API Call ---
+      HttpClient httpClient = HttpClient();
+      httpClient.badCertificateCallback = (cert, host, port) => true;
+      IOClient ioClient = IOClient(httpClient);
+
+      final response = await ioClient.post(
+        Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $customerToken',
+        },
+        body: json.encode(payload),
+      );
+
+      if (kDebugMode) {
+        print("API Response Status: ${response.statusCode}");
+        print("API Response Body: ${response.body}");
+      }
+
+      // --- 5. Process the Response and Update the UI ---
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+
+        // If no methods are returned, show a message
+        if (responseData.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No shipping methods available for this address.")),
+          );
+          setState(() {
+            _displayableShippingMethods = [];
+          });
+          return;
+        }
+
+        // Transform the API response into the format your UI table expects
+        final newMethods = responseData.map((method) {
+          return {
+            'id': '${method['carrier_code']}_${method['method_code']}', // A unique ID
+            'price_str': '₹${(method['amount'] as num).toStringAsFixed(2)}',
+            'price_val': (method['amount'] as num).toDouble(),
+            'title': method['method_title'], // Use method_title for the main title
+            'carrier': method['carrier_title'], // Use carrier_title for the carrier
+            'carrier_code': method['carrier_code'],
+            'method_code': method['method_code'],
+          };
+        }).toList();
+
+        // Update the state to display the new methods
+        setState(() {
+          _displayableShippingMethods = newMethods;
+
+          // Automatically select the first method by default
+          if (_displayableShippingMethods.isNotEmpty) {
+            final firstMethod = _displayableShippingMethods.first;
+            _selectedShippingMethodIndex = 0; // Assuming the first item corresponds to index 0
+            currentShippingCost = firstMethod['price_val'];
+            selectedShippingMethodName = firstMethod['title'];
+            carrierCode = firstMethod['carrier_code'];
+            methodCode = firstMethod['method_code'];
+          }
+        });
+
+      } else {
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['message'] ?? "Failed to fetch shipping methods.");
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error fetching shipping methods: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      // Hide loading indicator
+      // setState(() { _isFetchingRates = false; });
+    }
+  }
   // ✅ Async method to use await
   Future<void> _loadCustomerIdAndFetchWeight() async {
     final prefs = await SharedPreferences.getInstance();
@@ -225,11 +366,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
 
 
+  // ✅ REPLACE THIS ENTIRE METHOD
+
   Future<void> _loadShippingPreferencesForCheckout() async {
     if (!mounted) return;
     setState(() {
       _isLoadingShippingPrefs = true;
     });
+
+    // ... (all the country and region loading logic remains the same) ...
+    // ... (I'm skipping it here for brevity, no changes are needed in that part) ...
 
     final prefs = await SharedPreferences.getInstance();
     final String? countryNameFromPrefs = prefs.getString('selected_country_name');
@@ -237,13 +383,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final String? regionNameFromPrefs = prefs.getString('selected_region_name');
     final String? regionIdFromPrefs = prefs.getString('selected_region_id');
     final double? shippingPriceFromPrefs = prefs.getDouble('shipping_price');
-    final String? shippingMethodNameFromPrefs = prefs.getString('shipping_method_name'); // Renamed for clarity
-    final String? carrierCodeFromPrefs = prefs.getString('shipping_carrier_code'); // Assuming you might save these
-    final String? methodCodeFromPrefs = prefs.getString('shipping_method_code');   // Assuming you might save these
+    final String? shippingMethodNameFromPrefs = prefs.getString('method_name');
+    final String? carrierCodeFromPrefs = prefs.getString('carrier_code');
+    final String? methodCodeFromPrefs = prefs.getString('method_code');
 
-    print("method code $methodCodeFromPrefs");
-    print("method code $carrierCodeFromPrefs");
-    print("method code $carrierCodeFromPrefs");
     if (kDebugMode) {
       print("--- Loading Shipping Preferences (CheckoutScreen) ---");
       print("API Countries available: ${_apiCountries.length}, Prefs Country: $countryNameFromPrefs (ID: $countryIdFromPrefs), Prefs Region: $regionNameFromPrefs (ID: $regionIdFromPrefs)");
@@ -290,6 +433,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _selectedApiCountryObject = resolvedApiCountry;
       finalSelectedCountryDropDownName = resolvedApiCountry.fullNameEnglish;
       finalSelectedCountryId = resolvedApiCountry.id;
+      print("finalSelectedCountryId$finalSelectedCountryId");
       finalSelectedCountryFullName = resolvedApiCountry.fullNameEnglish;
       regionsForResolvedCountry = resolvedApiCountry.regions;
       newCurrentStatesList = regionsForResolvedCountry.map((r) => r.name).toList();
@@ -343,52 +487,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (kDebugMode) print("Current _selectedState ('$_selectedState') is invalid for the determined country's regions. Resetting.");
     }
 
-    // Shipping method preference loading
+
+    // --- ✅ FIX: Shipping method preference loading logic ---
     double loadedShippingCost = 0.0;
     String loadedShippingMethodName = '';
-    int loadedSelectedShippingIndex = 0; // Default to first if not found
+    String? loadedSelectedShippingId; // Use a nullable String for the ID
     String loadedCarrierCode = '';
     String loadedMethodCode = '';
 
-    // IMPORTANT CHANGE: Use _displayableShippingMethods
     if (shippingMethodNameFromPrefs != null && shippingPriceFromPrefs != null && _displayableShippingMethods.isNotEmpty) {
       int foundIndex = -1;
       if (carrierCodeFromPrefs != null && methodCodeFromPrefs != null) {
-        foundIndex = _displayableShippingMethods.indexWhere((m) => // Use _displayableShippingMethods
-        m['carrier_code'] == carrierCodeFromPrefs && m['method_code'] == methodCodeFromPrefs);
+        final targetId = '${carrierCodeFromPrefs}_${methodCodeFromPrefs}';
+        foundIndex = _displayableShippingMethods.indexWhere((m) => m['id'] == targetId);
       }
+      // Fallback to name if ID match fails
       if (foundIndex == -1) {
-        foundIndex = _displayableShippingMethods.indexWhere((m) => m['title'] == shippingMethodNameFromPrefs); // Use _displayableShippingMethods
+        foundIndex = _displayableShippingMethods.indexWhere((m) => m['title'] == shippingMethodNameFromPrefs);
       }
 
       if (foundIndex != -1) {
-        final matchedMethod = _displayableShippingMethods[foundIndex]; // Use _displayableShippingMethods
+        final matchedMethod = _displayableShippingMethods[foundIndex];
         loadedShippingCost = shippingPriceFromPrefs;
         loadedShippingMethodName = matchedMethod['title'] as String;
-        loadedSelectedShippingIndex = matchedMethod['id'] as int;
+        loadedSelectedShippingId = matchedMethod['id'] as String; // Store the String ID
         loadedCarrierCode = matchedMethod['carrier_code'] as String;
         loadedMethodCode = matchedMethod['method_code'] as String;
-        if (kDebugMode) print("Shipping method from prefs matched: $loadedShippingMethodName, Price: $loadedShippingCost");
+        if (kDebugMode) print("Shipping method from prefs matched: $loadedShippingMethodName, ID: $loadedSelectedShippingId");
       } else {
+        // This block runs if the saved method isn't found in the current list
         if (kDebugMode) print("Shipping method from prefs ('$shippingMethodNameFromPrefs') not found. Defaulting.");
-        final defaultMethod = _displayableShippingMethods.first; // Use _displayableShippingMethods
+        final defaultMethod = _displayableShippingMethods.first;
         loadedShippingCost = defaultMethod['price_val'] as double;
-        // ... (set other default values as before)
         loadedShippingMethodName = defaultMethod['title'] as String;
-        loadedSelectedShippingIndex = defaultMethod['id'] as int;
+        loadedSelectedShippingId = defaultMethod['id'] as String; // Store the String ID
         loadedCarrierCode = defaultMethod['carrier_code'] as String;
         loadedMethodCode = defaultMethod['method_code'] as String;
       }
-    } else if (_displayableShippingMethods.isNotEmpty) { // Use _displayableShippingMethods
-      final defaultMethod = _displayableShippingMethods.first; // Use _displayableShippingMethods
+    } else if (_displayableShippingMethods.isNotEmpty) {
+      // This block runs if there are no saved prefs at all
+      final defaultMethod = _displayableShippingMethods.first;
       loadedShippingCost = defaultMethod['price_val'] as double;
-      // ... (set other default values as before)
       loadedShippingMethodName = defaultMethod['title'] as String;
-      loadedSelectedShippingIndex = defaultMethod['id'] as int;
+      loadedSelectedShippingId = defaultMethod['id'] as String; // Store the String ID
       loadedCarrierCode = defaultMethod['carrier_code'] as String;
       loadedMethodCode = defaultMethod['method_code'] as String;
       if (kDebugMode) print("No/incomplete shipping prefs. Defaulting to: $loadedShippingMethodName");
     }
+
     if (!mounted) return;
     setState(() {
       _selectedCountry = finalSelectedCountryDropDownName.isNotEmpty ? finalSelectedCountryDropDownName : null;
@@ -403,25 +549,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       currentShippingCost = loadedShippingCost;
       selectedShippingMethodName = loadedShippingMethodName;
-      _selectedShippingMethodIndex = loadedSelectedShippingIndex;
+      _selectedShippingMethodId = loadedSelectedShippingId; // Set the final state variable
       carrierCode = loadedCarrierCode;
       methodCode = loadedMethodCode;
-
 
       _isLoadingShippingPrefs = false;
 
       if (kDebugMode) {
         print("--- setState COMPLETE (Prefs Loading) ---");
-        print("Final _selectedCountry for Dropdown: $_selectedCountry");
-        print("Final selectedCountryId: $selectedCountryId, Final selectedCountryName: $selectedCountryName");
-        print("Final _currentStates (${_currentStates.length}): ${_currentStates.take(5).join(', ')}...");
-        print("Final _selectedState for Dropdown: $_selectedState");
-        print("Final selectedRegionName: $selectedRegionName, Final selectedRegionId: $selectedRegionId");
-        print("Final Shipping: Method='$selectedShippingMethodName', Cost='$currentShippingCost', Index='$_selectedShippingMethodIndex'");
+        print("Final _selectedShippingMethodId: $_selectedShippingMethodId");
       }
 
       if (selectedCountryId.isNotEmpty) {
-
+        // This call to estimate a single rate is now less critical since we
+        // fetch the whole list, but we can leave it for now.
         _shippingBloc.add(EstimateShipping(selectedCountryId, _cartTotalWeight));
       }
     });
@@ -542,6 +683,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   // MODIFIED: This method now handles the UI updates synchronously
   // and then calls an async helper to fetch data.
+  // MODIFIED: This method now handles the UI updates synchronously
+  // and then calls an async helper to fetch data.
+  // ✅ REPLACE your _onCountryChanged method
+
+  // ✅ REPLACE your _onCountryChanged method with this clean version
+
   void _onCountryChanged(String? newCountryName) {
     if (newCountryName == null || newCountryName == _selectedCountry) return;
 
@@ -553,52 +700,294 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    // --- Start of synchronous state updates ---
-    // This updates the UI immediately for a responsive feel.
+    // Set the loading state immediately for a responsive UI
     setState(() {
       _selectedApiCountryObject = newSelectedApiCountry;
       _selectedCountry = newSelectedApiCountry!.fullNameEnglish;
       selectedCountryName = newSelectedApiCountry.fullNameEnglish;
       selectedCountryId = newSelectedApiCountry.id;
-
       _currentStates = newSelectedApiCountry.regions.map((r) => r.name).toList();
       _selectedState = null;
       selectedRegionName = '';
       selectedRegionId = '';
 
-      // Reset _displayableShippingMethods to initial template values
-      _displayableShippingMethods = _initialShippingMethodsTemplate
-          .map((method) => Map<String, dynamic>.from(method))
-          .toList();
-
-      // Reset shipping method selection to default from the (now reset) _displayableShippingMethods
-      if (_displayableShippingMethods.isNotEmpty) {
-        final defaultMethod = _displayableShippingMethods.first; // Or your preferred default
-        _selectedShippingMethodIndex = defaultMethod['id'] as int;
-        currentShippingCost = defaultMethod['price_val'] as double;
-        carrierCode = defaultMethod['carrier_code'] as String;
-        methodCode = defaultMethod['method_code'] as String;
-        selectedShippingMethodName = defaultMethod['title'] as String;
-      } else {
-        _selectedShippingMethodIndex = 0; // Or -1
-        currentShippingCost = 0.0;
-        carrierCode = '';
-        methodCode = '';
-        selectedShippingMethodName = '';
-      }
-
-      if (kDebugMode) {
-        print("Country changed to: $selectedCountryName (ID: $selectedCountryId)");
-        print("Shipping methods reset to template. Default selection: $selectedShippingMethodName, Cost: $currentShippingCost");
-      }
+      // Clear old data and turn on the loading flag
+      _displayableShippingMethods = [];
+      _selectedShippingMethodId = null;
+      _isFetchingShippingMethods = true;
     });
-    // --- End of synchronous state updates ---
 
-    // --- Start of asynchronous logic ---
-    // Call the helper function to perform async operations without blocking the UI.
-    _fetchWeightAndEstimateShipping(selectedCountryId);
+    // Call the single coordinator function to handle both API calls in sequence.
+    _fetchAndCombineShippingMethods(selectedCountryId);
   }
 
+  // ✅ REPLACE your _fetchAvailableShippingMethodsOnCountryChange method
+
+  Future<void> _fetchAvailableShippingMethodsOnCountryChange(String countryId) async {  if (countryId.isEmpty) {
+    if (kDebugMode) print("Skipping shipping method fetch: Country ID is empty.");
+    return;
+  }
+
+  // Optional: You could show a loading indicator here
+  setState(() {
+    // e.g., _isFetchingMethods = true;
+  });
+
+  if (kDebugMode) {
+    print("--- Fetching available shipping methods on country change ---");
+  }
+
+  try {
+    // --- 2. Get Auth Token ---
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in. Cannot fetch shipping methods.");
+    }
+
+    // --- 3. Build the Payload with Placeholders ---
+    // NOTE: We are using placeholder data because most of these fields are
+    // empty when only the country has been selected. This may lead to the
+    // API returning no methods.
+    final payload = {
+      "address": {
+        "country_id": countryId,
+        // --- Placeholders for required fields ---
+        "region_id": 0, // Sending 0 as we don't have a region yet
+        "region": "",
+        "region_code": "",
+        "postcode": "00000",   // Placeholder postcode
+        "city": "Placeholder", // Placeholder city
+        "street": ["Placeholder Street"],
+        "firstname": _firstNameController.text.isNotEmpty ? _firstNameController.text : "Guest",
+        "lastname": _lastNameController.text.isNotEmpty ? _lastNameController.text : "User",
+        "telephone": _phoneController.text.isNotEmpty ? _phoneController.text : "9999999999",
+      }
+    };
+
+    if (kDebugMode) {
+      print("Request Payload for methods: ${json.encode(payload)}");
+    }
+
+    // --- 4. Make the API Call ---
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+
+    final response = await ioClient.post(
+      Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+      body: json.encode(payload),
+    );
+
+
+    if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+
+        // If the API returns one or more methods...
+        if (responseData.isNotEmpty) {
+          final newMethods = responseData.map((method) {
+            return {
+              'id': '${method['carrier_code']}_${method['method_code']}',
+              'price_str': '₹${(method['amount'] as num).toStringAsFixed(2)}',
+              'price_val': (method['amount'] as num).toDouble(),
+              'title': method['method_title'],
+              'carrier': method['carrier_title'],
+              'carrier_code': method['carrier_code'],
+              'method_code': method['method_code'],
+              'is_api_updatable': false,
+            };
+          }).toList();
+
+          // ✅ FIX: Update state with the new list from the API
+          setState(() {
+            _displayableShippingMethods = newMethods;
+            // Select the first returned method by default
+            final firstMethod = _displayableShippingMethods.first;
+            _selectedShippingMethodId = firstMethod['id'] as String;
+            currentShippingCost = firstMethod['price_val'] as double;
+            selectedShippingMethodName = firstMethod['title'] as String;
+            carrierCode = firstMethod['carrier_code'] as String;
+            methodCode = firstMethod['method_code'] as String;
+            _isFetchingShippingMethods = false; // Turn off loading
+          });
+        } else {
+          // ✅ FIX: Handle the case where the API returns an empty list []
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("No shipping methods available for this country. Please select a State/Region.")),
+            );
+          }
+          setState(() {
+            // You can leave the list empty or fall back to the template if you want
+            _displayableShippingMethods = [];
+            _selectedShippingMethodId = null;
+            _isFetchingShippingMethods = false; // Turn off loading
+          });
+        }
+      } else {
+        // Handle API error
+        throw Exception("Failed to fetch shipping methods.");
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error fetching shipping methods: $e");
+      // ✅ FIX: Handle exceptions by turning off loading
+      setState(() {
+        _displayableShippingMethods = [];
+        _selectedShippingMethodId = null;
+        _isFetchingShippingMethods = false;
+      });
+    }
+  }
+
+
+
+
+
+  Future<void> _fetchAndCombineShippingMethods(String countryId) async {
+    List<Map<String, dynamic>> availableMethods = [];
+    double currentWeight = 0.0; // Variable to hold the freshly fetched weight
+
+    // --- NEW STEP: Fetch the latest cart weight FIRST ---
+    try {
+      if (kDebugMode) print("Step 0: Fetching up-to-date cart weight...");
+      final prefs = await SharedPreferences.getInstance();
+      final cust_id = prefs.getInt('user_customer_id');
+      if (cust_id != null) {
+        currentWeight = await fetchCartTotalWeight(cust_id);
+        if(mounted) {
+          setState(() {
+            // Also update the state variable so the whole class is in sync
+            _cartTotalWeight = currentWeight;
+          });
+        }
+        if (kDebugMode) print("Successfully fetched weight: $currentWeight");
+      } else {
+        if (kDebugMode) print("Could not fetch weight: Customer ID not found.");
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error fetching cart weight: $e. Using last known weight: $_cartTotalWeight");
+      currentWeight = _cartTotalWeight; // Fallback to the existing weight on error
+    }
+
+
+    // --- Call 1: Get the list of all available methods ---
+    try {
+      if (kDebugMode) print("Step 1: Fetching list of all available methods...");
+      availableMethods = await _fetchAvailableMethodsList(countryId);
+    } catch (e) {
+      if (kDebugMode) print("Error fetching methods list: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not fetch shipping options: $e"), backgroundColor: Colors.red),
+        );
+      }
+      setState(() { /* ... stop loading and show empty list ... */ });
+      return;
+    }
+
+    if (availableMethods.isEmpty) {
+      if (kDebugMode) print("No methods returned from the list API. Finalizing state.");
+      setState(() { /* ... stop loading and show empty list ... */ });
+      return;
+    }
+
+    // --- Call 2: Get the specific DHL rate using the Repository with the NEW weight ---
+    try {
+      if (kDebugMode) print("Step 2: Fetching specific rate via Repository with weight: $currentWeight");
+      // ✅ Use the freshly fetched `currentWeight` variable here
+      _shippingBloc.add(EstimateShipping(countryId, currentWeight));
+    } catch (e) {
+      if (kDebugMode) print("Error triggering specific rate fetch: $e");
+    }
+
+    // --- Final Step: Update the UI with the initial list ---
+    if (kDebugMode) print("Step 3: Setting initial state with the fetched list...");
+    setState(() {
+      _displayableShippingMethods = availableMethods;
+      _selectedShippingMethodId = availableMethods.first['id'] as String;
+      final firstMethod = availableMethods.first;
+      currentShippingCost = firstMethod['price_val'] as double;
+      selectedShippingMethodName = firstMethod['title'] as String;
+      carrierCode = firstMethod['carrier_code'] as String;
+      methodCode = firstMethod['method_code'] as String;
+      _isFetchingShippingMethods = false;
+    });
+  }
+
+  // ✅ RENAME AND MODIFY this method. It now RETURNS the list.
+
+// ✅ REPLACE your existing _fetchAvailableMethodsList method with this corrected version
+
+  Future<List<Map<String, dynamic>>> _fetchAvailableMethodsList(String countryId) async {
+    // ... (setup code for token, payload, client is the same) ...
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in.");
+    }
+
+    // NOTE: You may need to provide more real data here if the API requires it
+    // for certain countries.
+    final payload = {
+      "address": {
+        "country_id": countryId,
+        "region_id": 0,
+        "region": "",
+        "region_code": "",
+        "postcode": "00000",
+        "city": "Placeholder",
+        "street": ["Placeholder Street"],
+        "firstname": _firstNameController.text.isNotEmpty ? _firstNameController.text : "Guest",
+        "lastname": _lastNameController.text.isNotEmpty ? _lastNameController.text : "User",
+        "telephone": _phoneController.text.isNotEmpty ? _phoneController.text : "9999999999",
+      }
+    };
+
+    HttpClient httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
+
+    final response = await ioClient.post(
+      Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods'),
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer $customerToken' },
+      body: json.encode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> responseData = json.decode(response.body);
+      return responseData.map((method) {
+        final carrierCode = method['carrier_code'] as String? ?? '';
+        final methodTitle = method['method_title'] as String? ?? '';
+        print("carr>>$carrierCode");
+
+        // ✅ FIX: Make the check more flexible.
+        // We will flag the method as updatable if its carrier code is 'dhl' OR
+        // if its method title is 'DHL'. This handles the 'tablerate' case.
+        final bool isUpdatable = (carrierCode == 'dhl' || methodTitle == 'DHL');
+
+        if(kDebugMode && isUpdatable) {
+          print("Flagging method '${methodTitle}' (${carrierCode}) as updatable.");
+        }
+
+        return {
+          'id': '${carrierCode}_${method['method_code']}',
+          'price_str': '₹${(method['amount'] as num).toStringAsFixed(2)}',
+          'price_val': (method['amount'] as num).toDouble(),
+          'title': methodTitle,
+          'carrier': method['carrier_title'],
+          'carrier_code': carrierCode,
+          'method_code': method['method_code'],
+          'is_api_updatable': isUpdatable, // Use the result of our flexible check
+        };
+      }).toList();
+    } else {
+      throw Exception("Failed to fetch methods list: ${response.body}");
+    }
+  }
   // NEW: Helper method to fetch weight and trigger shipping estimation.
   Future<void> _fetchWeightAndEstimateShipping(String countryId) async {
     if (countryId.isEmpty) return;
@@ -676,12 +1065,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   @override
+  @override
+  // ✅ REPLACE your existing build method with this one
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _shippingBloc,
       child: BlocListener<ShippingBloc, ShippingState>(
         listener: (context, state) {
           if (!mounted) return;
+
+          // --- All your existing state handling remains ---
           if (state is CountriesLoading) {
             setState(() {
               _areCountriesLoading = true;
@@ -693,66 +1088,76 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _initialCountryLoadAttempted = true;
             _countriesError = null;
             _loadShippingPreferencesForCheckout();
-          } else if (state is ShippingError) {
-            // Handle Shipping Estimation Errors
-            if (state.message == "Failed to estimate shipping") {
-              if (kDebugMode) print("Shipping estimation failed via BLoC. Defaulting to Standard Shipping.");
-              _selectStandardShippingMethod();
-              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message + ". Defaulted to Standard Shipping.")));
-            } else { // Handle other errors, e.g., country loading
-              setState(() {
-                _areCountriesLoading = false;
-                _initialCountryLoadAttempted = true;
-                if (_apiCountries.isEmpty) { // Likely a country loading error
-                  _countriesError = state.message;
-                }
-              });
-              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
-            }
-          } else if (state is ShippingRateLoading) {
-            if (kDebugMode) print("Shipping rate is loading (event from BLoC)...");
-          } else if (state is ShippingRateLoaded) {
-            if (kDebugMode) print("Shipping rate loaded event received (from BLoC). Price: ${state.shippingPrice}");
-            setState(() {
-              int updatableMethodIndex = _displayableShippingMethods.indexWhere(
-                      (m) => m['is_api_updatable'] == true);
+          }
 
-              // Always update the display price of the API-updatable method in the list
+          // This now handles errors from BOTH shipping and payment submissions
+          else if (state is ShippingError) {
+            // If you want to show specific messages for specific errors, you can check state.message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+            );
+          }
+
+          else if (state is ShippingRateLoading) {
+            if (kDebugMode) print("Shipping rate is loading (event from BLoC)...");
+          }
+
+          else if (state is ShippingRateLoaded) {
+            if (kDebugMode) {
+              print("Received specific rate from Repository: ${state.shippingPrice}");
+            }
+            setState(() {
+              int updatableMethodIndex = _displayableShippingMethods
+                  .indexWhere((m) => m['is_api_updatable'] == true);
+
               if (updatableMethodIndex != -1) {
+                if (kDebugMode) {
+                  print("Found updatable method at index $updatableMethodIndex. Updating its price.");
+                }
                 _displayableShippingMethods[updatableMethodIndex]['price_val'] = state.shippingPrice;
                 _displayableShippingMethods[updatableMethodIndex]['price_str'] = '₹${state.shippingPrice.toStringAsFixed(2)}';
-                if (kDebugMode) {
-                  print("Updated API-driven shipping method's display price to: ${state.shippingPrice}");
+
+                final updatableMethodId = _displayableShippingMethods[updatableMethodIndex]['id'];
+                if (_selectedShippingMethodId == updatableMethodId) {
+                  if (kDebugMode) {
+                    print("The updated method is currently selected. Updating currentShippingCost to ${state.shippingPrice}");
+                  }
+                  currentShippingCost = state.shippingPrice;
                 }
               } else {
-                if (kDebugMode) print("No method flagged as 'is_api_updatable' found. Cannot update display price from API.");
-              }
-
-              // Now, decide on the *selected* shipping method
-              if (state.shippingPrice <= 0) {
-                if (kDebugMode) print("API returned shipping price <= 0 (${state.shippingPrice}). Defaulting selection to Standard Shipping.");
-                _selectStandardShippingMethod(); // This updates _selectedShippingMethodIndex, currentShippingCost etc.
-              } else {
-                // API price is > 0.
-                // If the API-updatable method was already selected by the user, update its currentShippingCost.
-                // Otherwise, the user's current selection (e.g., Standard if they picked it) remains.
-                if (updatableMethodIndex != -1 && _selectedShippingMethodIndex == _displayableShippingMethods[updatableMethodIndex]['id']) {
-                  currentShippingCost = state.shippingPrice;
-                  if (kDebugMode) {
-                    print("API-driven method is selected and price > 0. Updated currentShippingCost to: ${state.shippingPrice}");
-                  }
-                } else {
-                  if (kDebugMode && updatableMethodIndex != -1) { // Check if updatableMethodIndex is valid
-                    print("API price > 0. Current selection (${selectedShippingMethodName}) is not the API-updatable method ('${_displayableShippingMethods[updatableMethodIndex]['title']}'). Selection and cost remain based on user's choice.");
-                  } else if (kDebugMode) {
-                    print("API price > 0. No API-updatable method or current selection is not it. Selection and cost remain based on user's choice.");
-                  }
+                if (kDebugMode) {
+                  print("No method flagged as 'is_api_updatable' found in the list. Cannot update price.");
                 }
               }
             });
           }
-        },
 
+          // --- ✅ START: ADD THIS NEW NAVIGATION LOGIC ---
+          // This case will be triggered when the shipping information is successfully submitted.
+          else if (state is ShippingInfoSubmittedSuccessfully) {
+            if (kDebugMode) {
+              print("Shipping Info submitted successfully. Navigating to PaymentScreen...");
+            }
+            // Navigate to the new PaymentScreen, passing the data it needs.
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                // You must provide the ShippingBloc to the new screen
+                // so it can listen for payment events.
+                builder: (_) => BlocProvider.value(
+                  value: _shippingBloc,
+                  child: PaymentScreen(
+                    paymentMethods: state.paymentMethods,
+                    totals: state.totals,
+                    billingAddress: state.billingAddress,
+                  ),
+                ),
+              ),
+            );
+          }
+          // --- ✅ END: ADD THIS NEW NAVIGATION LOGIC ---
+
+        },
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Checkout'),
@@ -760,7 +1165,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               icon: Icon(Platform.isIOS ? Icons.arrow_back_ios : Icons.arrow_back),
               onPressed: () {
                 if (Navigator.canPop(context)) Navigator.pop(context);
-                else Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>   ShoppingBagScreen()));
+                else Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ShoppingBagScreen()));
               },
             ),
           ),
@@ -855,21 +1260,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             setState(() {
               _selectedState = newRegionName;
               selectedRegionName = newRegionName;
+              selectedRegionCode=newRegionName;
               Region? selectedRegionObject;
               if (_selectedApiCountryObject != null) {
                 try {
                   selectedRegionObject = _selectedApiCountryObject!.regions.firstWhere((r) => r.name == newRegionName);
                   selectedRegionId = selectedRegionObject.id;
+                  selectedRegionCode=selectedRegionObject.code;
                 } catch (e) {
                   selectedRegionId = '';
                   if (kDebugMode) print("Error: Selected region name '$newRegionName' not found in regions of '${_selectedApiCountryObject!.fullNameEnglish}'.");
+                  selectedRegionObject = null;
                 }
-              } else {
-                selectedRegionId = '';
-                if (kDebugMode) print("Error: _selectedApiCountryObject is null. Cannot set region ID.");
               }
-              if (kDebugMode) print("Region selected: $selectedRegionName (ID: $selectedRegionId)");
+
+
+              setState(() {
+                _selectedState = newRegionName; // For the dropdown UI
+
+                if (selectedRegionObject != null) {
+                  // ✅ Store all three required pieces of information
+                  selectedRegionName = selectedRegionObject.name;
+                  selectedRegionId = selectedRegionObject.id;
+                  selectedRegionCode = selectedRegionObject.code; // The missing piece!
+                } else {
+                  // Reset if the region can't be found
+                  selectedRegionName = '';
+                  selectedRegionId = '';
+                  selectedRegionCode = '';
+                }
+
+                if (kDebugMode) {
+                  print("Region selected: $selectedRegionName (ID: $selectedRegionId, Code: $selectedRegionCode)");
+                }
+              });
+
+
+              // else {
+              //   selectedRegionId = '';
+              //   if (kDebugMode) print("Error: _selectedApiCountryObject is null. Cannot set region ID.");
+              // }
+              if (kDebugMode) print("Region selected: $selectedRegionName (ID: $selectedRegionId),Code: $selectedRegionCode)");
             });
+
           } : null,
           disabledHint: Text(
               _selectedCountry == null || _selectedCountry!.isEmpty
@@ -986,9 +1419,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 // Add this method to your _CheckoutScreenState class
+  // ✅ REPLACE THIS ENTIRE METHOD
+
   Future<void> _showShippingMethodSelectionDialog(BuildContext context) async {
-    // Use a temporary variable to hold the selection within the dialog
-    int? tempSelectedShippingMethodId = _selectedShippingMethodIndex;
+    // Use a temporary string variable to hold the selection within the dialog
+    String? tempSelectedShippingId = _selectedShippingMethodId;
 
     await showDialog<void>(
       context: context,
@@ -1000,15 +1435,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               content: SingleChildScrollView(
                 child: ListBody(
                   children: _displayableShippingMethods.map((method) {
-                    return RadioListTile<int>(
+                    return RadioListTile<String>( // Works with String
                       title: Text("${method['title']} (${method['carrier']})"),
                       subtitle: Text(method['price_str'] as String),
-                      value: method['id'] as int,
-                      groupValue: tempSelectedShippingMethodId,
-                      onChanged: (int? value) {
+                      value: method['id'] as String, // Value is the String ID
+                      groupValue: tempSelectedShippingId,
+                      onChanged: (String? value) { // Receives a String value
                         if (value != null) {
                           stfSetState(() { // Update dialog's state
-                            tempSelectedShippingMethodId = value;
+                            tempSelectedShippingId = value;
                           });
                         }
                       },
@@ -1019,19 +1454,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               actions: <Widget>[
                 TextButton(
                   child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
                 TextButton(
                   child: const Text('Select'),
                   onPressed: () {
-                    if (tempSelectedShippingMethodId != null) {
+                    if (tempSelectedShippingId != null) {
                       // Update the main screen's state
                       setState(() {
-                        _selectedShippingMethodIndex = tempSelectedShippingMethodId!;
+                        _selectedShippingMethodId = tempSelectedShippingId!;
                         final newSelectedMethodData = _displayableShippingMethods.firstWhere(
-                                (m) => m['id'] == _selectedShippingMethodIndex
+                                (m) => m['id'] == _selectedShippingMethodId
                         );
                         currentShippingCost = newSelectedMethodData['price_val'] as double;
                         selectedShippingMethodName = newSelectedMethodData['title'] as String;
@@ -1051,31 +1484,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
 
-  Widget _buildShippingMethodsSection(ShippingState state) { // Accepts BLoC state
-    Map<String, dynamic>? determinedShippingMethod;
+  // ✅ Full, Corrected _buildShippingMethodsSection Method
 
-    // Determine which single shipping method to display.
-    // This logic should align with how _selectedShippingMethodIndex, currentShippingCost, etc., are set.
-    if (_displayableShippingMethods.isNotEmpty && _selectedShippingMethodIndex >= 0) {
-      try {
-        determinedShippingMethod = _displayableShippingMethods.firstWhere(
-                (m) => m['id'] == _selectedShippingMethodIndex
-        );
-      } catch (e) {
-        if (kDebugMode) print("Error finding the determined shipping method by ID: $_selectedShippingMethodIndex. $e");
-        // Fallback if the selected index is somehow invalid
-        if (_displayableShippingMethods.isNotEmpty) {
-          _selectedShippingMethodIndex = _displayableShippingMethods.first['id'] as int;
-          determinedShippingMethod = _displayableShippingMethods.first;
-          // Ensure related state variables are also updated if we fallback
-          currentShippingCost = determinedShippingMethod['price_val'] as double;
-          selectedShippingMethodName = determinedShippingMethod['title'] as String;
-          carrierCode = determinedShippingMethod['carrier_code'] as String;
-          methodCode = determinedShippingMethod['method_code'] as String;
-        }
-      }
-    }
-
+  Widget _buildShippingMethodsSection(ShippingState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1087,90 +1498,178 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         Divider(height: 1, thickness: 0.8, color: Colors.grey[300]),
         const SizedBox(height: 16.0),
 
-        if (state is ShippingRateLoading && selectedCountryId.isNotEmpty)
+        // --- Start of Corrected Logic ---
+
+        // 1. Show a loading indicator while fetching new methods
+        if (_isFetchingShippingMethods)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20.0),
             child: Center(child: Text("Estimating shipping costs...")),
           )
-        else if (determinedShippingMethod == null) // If no method could be determined
+        // 2. Show a message if fetching is complete but no methods are available
+        else if (_displayableShippingMethods.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20.0),
-            child: Center(child: Text("Shipping method not determined.")),
+            child: Center(child: Text("No shipping methods available. Please select a State/Region.")),
           )
-        else // Display the single determined shipping method in a table structure
-          Table(
-            border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-            columnWidths: const {
-              0: IntrinsicColumnWidth(flex: 0.7), // "Select Method" column
-              1: FlexColumnWidth(1),             // Price
-              2: FlexColumnWidth(1.2),           // Method Title
-              3: FlexColumnWidth(1.2),           // Carrier Title
-            },
-            children: [
-              // Header Row (as per your image)
-              TableRow(
-                decoration: BoxDecoration(color: Colors.grey[100]),
-                children: [
-                  _buildTableCell('Select Method', isHeader: true, textAlign: TextAlign.center),
-                  _buildTableCell('Price', isHeader: true, textAlign: TextAlign.center),
-                  _buildTableCell('Method Title', isHeader: true, textAlign: TextAlign.center),
-                  _buildTableCell('Carrier Title', isHeader: true, textAlign: TextAlign.center),
-                ],
-              ),
-              // Single Data Row for the determined method
-              TableRow(
-                children: [
-                  TableCell( // "Select Method" cell - shows a selected radio, but it's non-interactive here
-                    verticalAlignment: TableCellVerticalAlignment.middle,
-                    child: Center(
-                      child: Radio<int>(
-                        value: determinedShippingMethod['id'] as int, // Value of the determined method
-                        groupValue: determinedShippingMethod['id'] as int, // Group value is same as value to make it appear selected
-                        onChanged: null, // NON-INTERACTIVE: User cannot change it here
-                        activeColor: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                  _buildTableCell(
-                    // Display the price of the determined method.
-                    // currentShippingCost should reflect this method's price.
-                      '₹${currentShippingCost.toStringAsFixed(2)}',
-                      textAlign: TextAlign.center
-                  ),
-                  _buildTableCell(
-                      determinedShippingMethod['title'] as String,
-                      textAlign: TextAlign.center
-                  ),
-                  _buildTableCell(
-                      determinedShippingMethod['carrier'] as String,
-                      textAlign: TextAlign.center
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-        const SizedBox(height: 24.0),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black, foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
-            ),
-            onPressed: () {
-              if (determinedShippingMethod != null) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('NEXT: ${determinedShippingMethod['title']}')));
-                _saveCurrentSelectionsToPrefs();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shipping method not determined.')));
+        // 3. Display the shipping method table if we have data
+        else ...[
+                () {
+              // This logic now runs safely after loading is complete and the list is populated.
+              Map<String, dynamic>? determinedShippingMethod;
+              if (_selectedShippingMethodId != null) {
+                try {
+                  determinedShippingMethod = _displayableShippingMethods.firstWhere(
+                        (m) => m['id'] == _selectedShippingMethodId,
+                  );
+                } catch (e) {
+                  if (kDebugMode) print("Error finding selected shipping method ID '$_selectedShippingMethodId'. $e");
+                  // Fallback if ID is somehow invalid, though this is less likely now.
+                  determinedShippingMethod = null;
+                }
               }
-            },
-            child: const Text('NEXT'),
-          ),
-        ),
+
+              // If for any reason a method couldn't be determined, show a message.
+              if (determinedShippingMethod == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20.0),
+                  child: Center(child: Text("Please select a shipping method.")),
+                );
+              }
+
+              // Build and return the table with the determined method
+              return Table(
+                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                columnWidths: const {
+                  0: IntrinsicColumnWidth(flex: 0.7),
+                  1: FlexColumnWidth(1),
+                  2: FlexColumnWidth(1.2),
+                  3: FlexColumnWidth(1.2),
+                },
+                children: [
+                  TableRow(
+                    decoration: BoxDecoration(color: Colors.grey[100]),
+                    children: [
+                      _buildTableCell('Select Method', isHeader: true, textAlign: TextAlign.center),
+                      _buildTableCell('Price', isHeader: true, textAlign: TextAlign.center),
+                      _buildTableCell('Method Title', isHeader: true, textAlign: TextAlign.center),
+                      _buildTableCell('Carrier Title', isHeader: true, textAlign: TextAlign.center),
+                    ],
+                  ),
+                  TableRow(
+                    children: [
+                      TableCell(
+                        verticalAlignment: TableCellVerticalAlignment.middle,
+                        child: Center(
+                          child: Radio<String>(
+                            value: determinedShippingMethod['id'] as String,
+                            groupValue: _selectedShippingMethodId,
+                            onChanged: null, // Non-interactive in the table
+                            activeColor: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ),
+                      _buildTableCell(
+                        // Use the price from the method data itself for consistency
+                        '₹${(determinedShippingMethod['price_val'] as double).toStringAsFixed(2)}',
+                        textAlign: TextAlign.center,
+                      ),
+                      _buildTableCell(
+                        determinedShippingMethod['title'] as String,
+                        textAlign: TextAlign.center,
+                      ),
+                      _buildTableCell(
+                        determinedShippingMethod['carrier'] as String,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }(),
+
+            const SizedBox(height: 24.0),
+
+            // "NEXT" Button
+            Align(
+              alignment: Alignment.centerRight,
+              child: BlocBuilder<ShippingBloc, ShippingState>(
+                builder: (context, state) {
+                  final isSubmitting = state is ShippingInfoSubmitting;
+                  final determinedShippingMethod = _displayableShippingMethods.firstWhere(
+                        (m) => m['id'] == _selectedShippingMethodId,
+                    orElse: () => <String, dynamic>{}, // Provide an empty map as a fallback
+                  );
+
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
+                      disabledBackgroundColor: Colors.grey[700],
+                    ),
+                    onPressed: isSubmitting ? null : () async {
+                      if (_firstNameController.text.isEmpty ||
+                          _lastNameController.text.isEmpty ||
+                          _streetAddressController.text.isEmpty ||
+                          _cityController.text.isEmpty ||
+                          _zipController.text.isEmpty ||
+                          _phoneController.text.isEmpty ||
+                          selectedCountryId.isEmpty
+                          ) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please fill all required fields.')),
+                        );
+                        return;
+                      }
+                      if (determinedShippingMethod.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please select a shipping method first.')),
+                        );
+                        return;
+                      }
+
+                      _saveCurrentSelectionsToPrefs();
+
+                      final prefs = await SharedPreferences.getInstance();
+                      final finalCarrierCode = prefs.getString('carrier_code') ?? carrierCode;
+                      final finalMethodCode = prefs.getString('method_code') ?? methodCode;
+
+                      context.read<ShippingBloc>().add(
+                        SubmitShippingInfo(
+                          firstName: _firstNameController.text,
+                          lastName: _lastNameController.text,
+                          streetAddress: _streetAddressController.text,
+                          city: _cityController.text,
+                          zipCode: _zipController.text,
+                          phone: _phoneController.text,
+                          email: _emailController.text.isNotEmpty ? _emailController.text : 'mitesh@gmail.com',
+                          countryId: selectedCountryId,
+                          regionName: selectedRegionName,
+                          regionId: selectedRegionId,
+                          regionCode: selectedRegionCode,
+                          carrierCode: finalCarrierCode,
+                          methodCode: finalMethodCode,
+                        ),
+                      );
+                    },
+                    child: isSubmitting
+                        ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                        : const Text('NEXT'),
+                  );
+                },
+              ),
+            ),
+          ],
       ],
     );
   }
