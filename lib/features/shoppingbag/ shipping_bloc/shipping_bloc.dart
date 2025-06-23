@@ -21,14 +21,27 @@ class ShippingBloc extends Bloc<ShippingEvent, ShippingState> {
       : _shippingRepository = ShippingRepository(),
         super(ShippingInitial()) {
     on<FetchCountries>(_onFetchCountries);
-    on<EstimateShipping>(_onEstimateShipping);
+    // on<EstimateShipping>(_onEstimateShipping);
 
     // ✅ REGISTER THE NEW EVENT HANDLER
+    on<FetchShippingMethods>(_onFetchShippingMethods);
     on<SubmitShippingInfo>(_onSubmitShippingInfo);
     on<SubmitPaymentInfo>(_onSubmitPaymentInfo);
   }
 
 
+  Future<void> _onFetchShippingMethods(
+      FetchShippingMethods event, Emitter<ShippingState> emit) async {
+    emit(ShippingMethodsLoading());
+    try {
+      // We assume a postcode isn't required for this initial estimate, but you can add it
+      final methods = await _shippingRepository.fetchAvailableShippingMethods(
+          countryId: event.countryId, regionId: event.regionId, postcode: event.postcode);
+      emit(ShippingMethodsLoaded(methods));
+    } catch (e) {
+      emit(ShippingError(e.toString()));
+    }
+  }
 
   Future<void> _onFetchCountries(FetchCountries event, Emitter<ShippingState> emit) async {
     emit(CountriesLoading());
@@ -42,16 +55,16 @@ class ShippingBloc extends Bloc<ShippingEvent, ShippingState> {
     }
   }
 
-  Future<void> _onEstimateShipping(EstimateShipping event, Emitter<ShippingState> emit) async {
-    emit(ShippingRateLoading());
-    try {
-      final shippingRepository = ShippingRepository();
-      final shippingRate = await shippingRepository.estimateShipping(event.countryId,event.weight);
-      emit(ShippingRateLoaded(shippingRate!));
-    } catch (e) {
-      emit(ShippingError("Failed to estimate shipping"));
-    }
-  }
+  // Future<void> _onEstimateShipping(EstimateShipping event, Emitter<ShippingState> emit) async {
+  //   emit(ShippingRateLoading());
+  //   try {
+  //     final shippingRepository = ShippingRepository();
+  //     final shippingRate = await shippingRepository.estimateShipping(event.countryId,event.weight);
+  //     emit(ShippingRateLoaded(shippingRate!));
+  //   } catch (e) {
+  //     emit(ShippingError("Failed to estimate shipping"));
+  //   }
+  // }
 
   Future<void> _onSubmitShippingInfo(
       SubmitShippingInfo event,

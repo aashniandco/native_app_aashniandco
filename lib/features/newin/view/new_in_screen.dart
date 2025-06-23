@@ -222,13 +222,29 @@ class _NewInScreenState extends State<NewInScreen> {
   List<dynamic> sortedProducts = [];
   String firstName = '';
   String lastName = '';
+  int currentPage = 0;
+  int nextPage = 0;
+  bool hasReachedEnd = false;
+
+  final ScrollController _scrollController = ScrollController();
+
+  bool _isFetching = false;
+
 
   @override
   void initState() {
     super.initState();
     final selectedData = widget.selectedCategories;
     debugPrint("Selected Categories: $selectedData");
+    // context.read<NewInBloc>().add(FetchNewIn(page: nextPage));
     context.read<NewInBloc>().add(FetchNewIn());
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !hasReachedEnd) {
+        context.read<NewInBloc>().add(FetchNewIn(page: currentPage + 1));
+      }
+    });
+
 
     _loadUserNames();
   }
@@ -266,6 +282,7 @@ class _NewInScreenState extends State<NewInScreen> {
           } else if (state is NewInError) {
             return Center(child: Text(state.message));
           } else if (state is NewInLoaded) {
+            _isFetching = false;
             sortProducts(state.products);
 
             if (sortedProducts.isEmpty) {
@@ -318,7 +335,11 @@ class _NewInScreenState extends State<NewInScreen> {
                   // Product Grid
                   Expanded(
                     child: GridView.builder(
-                      itemCount: sortedProducts.length,
+                      controller: _scrollController,
+
+                      itemCount: state.hasReachedEnd
+                          ? sortedProducts.length
+                          : sortedProducts.length + 1,
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 10,
@@ -326,6 +347,14 @@ class _NewInScreenState extends State<NewInScreen> {
                         childAspectRatio: 0.5,
                       ),
                       itemBuilder: (context, index) {
+                        if (index >= sortedProducts.length) {
+                          // Loader item
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
                         final item = sortedProducts[index];
                         return GestureDetector(
                           onTap: () {
@@ -370,10 +399,7 @@ class _NewInScreenState extends State<NewInScreen> {
                                   child: Center(
                                     child: Text(
                                       item.designerName ?? "Unknown",
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -401,10 +427,7 @@ class _NewInScreenState extends State<NewInScreen> {
                                   child: Center(
                                     child: Text(
                                       "₹${item.actualPrice?.toStringAsFixed(0) ?? 'N/A'}",
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -413,7 +436,8 @@ class _NewInScreenState extends State<NewInScreen> {
                             ),
                           ),
                         );
-                      },
+                      }
+                      ,
                     ),
                   ),
                 ],

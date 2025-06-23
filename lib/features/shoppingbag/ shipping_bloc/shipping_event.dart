@@ -66,3 +66,14 @@ class SubmitPaymentInfo extends ShippingEvent {
      required this.paymentMethodNonce,
   });
 }
+
+// 🔄 REPLACE EstimateShipping event
+class FetchShippingMethods extends ShippingEvent {
+  final String countryId;
+  final String regionId;
+  final String postcode;
+
+  // Add other address fields if you need them
+  FetchShippingMethods({required this.countryId, required this.regionId, this.postcode = ""});
+
+}

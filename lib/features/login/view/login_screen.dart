@@ -1,3 +1,5 @@
+import 'package:aashni_app/features/login/view/forgot_password.dart';
+import 'package:aashni_app/features/signup/view/signup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/view/auth_screen.dart';
@@ -87,20 +89,26 @@ class _LoginScreen1State extends State<LoginScreen1> {
         keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
         decoration: InputDecoration(
           filled: true,
-          fillColor: Colors.grey[200],
+          fillColor: Colors.white,
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.grey),
-          contentPadding:
-          const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          labelStyle: const TextStyle(color: Colors.black54),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Colors.black87),
           ),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) return '$label is required';
-          if (isEmail &&
-              !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+          if (isEmail && !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
             return 'Enter a valid email';
           }
           if (label == "Password" && value.length < 6) {
@@ -113,93 +121,100 @@ class _LoginScreen1State extends State<LoginScreen1> {
   }
 
   void _navigateToForgotPassword() {
-    // TODO: Replace with your actual ForgotPasswordScreen navigation
-    showDialog(
-      context: context,
-      builder: (_) => const AlertDialog(
-        title: Text('Forgot Password'),
-        content: Text('This should navigate to ForgotPasswordScreen.'),
-      ),
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
     );
   }
 
   void _navigateToCreateAccount() {
-    // TODO: Replace with your actual CreateAccountScreen navigation
-    showDialog(
-      context: context,
-      builder: (_) => const AlertDialog(
-        title: Text('Create Account'),
-        content: Text('This should navigate to CreateAccountScreen.'),
-      ),
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => SignupScreen()),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        foregroundColor: Colors.white,
-        title: const Text('Login'),
-        centerTitle: true,
-        backgroundColor: Colors.grey[900],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 30),
-              const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
-              const SizedBox(height: 20),
-              _buildField(label: "Email", controller: _email, isEmail: true),
-              _buildField(label: "Password", controller: _password, obscureText: true),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _navigateToForgotPassword,
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(color: Colors.grey),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      Image.asset(
+                        'assets/logo.jpeg',
+                        height: 100,
+                         // optional: applies tint color like the original icon
+                      ),
+
+                       SizedBox(height: 20),
+                      // Text("Welcome Back",
+                      //     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 20),
+                      _buildField(label: "Email", controller: _email, isEmail: true),
+                      _buildField(label: "Password", controller: _password, obscureText: true),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _navigateToForgotPassword,
+                          child: const Text('Forgot Password?'),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: _loading ? null : _submitForm,
+                          child: _loading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text("Login",
+                              style: TextStyle(fontSize: 16, color: Colors.white)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text("Don't have an account? "),
+                          TextButton(
+                            onPressed: _navigateToCreateAccount,
+                            child: const Text("Create Account",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[900],
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: _loading ? null : _submitForm,
-                  child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Login",
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  TextButton(
-                    onPressed: _navigateToCreateAccount,
-                    child: const Text(
-                      "Create an Account",
-                      style: TextStyle(
-                          color: Colors.grey, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

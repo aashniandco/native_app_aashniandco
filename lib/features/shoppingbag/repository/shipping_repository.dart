@@ -249,6 +249,7 @@ import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ shipping_bloc/shipping_event.dart';
+import '../model/countries.dart';
 
 class ShippingRepository {
   final IOClient ioClient;
@@ -360,126 +361,182 @@ class ShippingRepository {
   }
 
 
-  Future<double?> estimateShipping(String countryId, double cartWeight) async {
-    // fetchCartTotalWeight(); // REMOVE THIS LINE - This was the source of your error.
-    // The cartWeight is passed as a parameter.
-print("called>>>>>>>>>>>");
-    final regionId = 0; // Still hardcoded
-    final prefs = await SharedPreferences.getInstance();
-    final customerToken = prefs.getString('user_token');
+//   Future<double?> estimateShipping(String countryId, double cartWeight) async {
+//     // fetchCartTotalWeight(); // REMOVE THIS LINE - This was the source of your error.
+//     // The cartWeight is passed as a parameter.
+// print("called>>>>>>>>>>>");
+//     final regionId = 0; // Still hardcoded
+//     final prefs = await SharedPreferences.getInstance();
+//     final customerToken = prefs.getString('user_token');
+//
+//     if (customerToken == null || customerToken.isEmpty) {
+//       throw Exception("User not logged in for estimating shipping");
+//     }
+//
+//     final shippingUrl =
+//         "https://stage.aashniandco.com/rest/V1/aashni/shipping-rate/$countryId/0?weight=$cartWeight";
+//
+//     print('--- ShippingRepository: Attempting to estimate shipping ---');
+//     print('Country ID: $countryId, Region ID (hardcoded): $regionId, Cart Weight: $cartWeight');
+//     print('Request URL>>>>>: $shippingUrl');
+//     print('Customer Token: $customerToken');
+//     print('-------------------------------------------------------------');
+//
+//     final response = await this.ioClient.get( // Use this.ioClient
+//       Uri.parse(shippingUrl),
+//       headers: {
+//         'Authorization': 'Bearer $customerToken',
+//         'Content-Type': 'application/json',
+//       },
+//     );
+//
+//     print('--- ShippingRepository: API Response for shipping estimate ---');
+//     print('Status Code: ${response.statusCode}');
+//     print('Response Body: ${response.body}'); // Log the full body for shipping estimate
+//     print('----------------------------------------------------------');
+//
+//     if (response.statusCode != 200) {
+//       print('ShippingRepository: Estimate shipping API call failed with status code ${response.statusCode}.');
+//       throw Exception("Failed to estimate shipping (HTTP ${response.statusCode}): ${response.body}");
+//     }
+//
+//     final data = jsonDecode(response.body);
+//
+//     if (data is List && data.length >= 2 && data[0] == true) {
+//       final price = data[1];
+//       print('ShippingRepository: Price from API before conversion: $price (Type: ${price.runtimeType})');
+//       if (price != null) {
+//         if (price is num) {
+//           return price.toDouble();
+//         } else if (price is String) {
+//           try {
+//             return double.parse(price);
+//           } catch (e) {
+//             print('ShippingRepository: Error parsing price string "$price" to double: $e');
+//             throw Exception("Failed to estimate shipping: Invalid price format in response - ${response.body}");
+//           }
+//         } else {
+//           throw Exception("Failed to estimate shipping: Price is of unexpected type ${price.runtimeType} - ${response.body}");
+//         }
+//       } else {
+//         throw Exception("Failed to estimate shipping: Price from API is null - ${response.body}");
+//       }
+//     } else {
+//       print('ShippingRepository: Condition for successful parsing FAILED for shipping estimate.');
+//       print('  - data is List: ${data is List}');
+//       if (data is List) {
+//         print('  - data.length >= 2: ${data.length >= 2}');
+//         if (data.isNotEmpty) {
+//           print('  - data[0] == true: ${data[0] == true} (Actual data[0]: ${data[0]}, Type: ${data[0].runtimeType})');
+//         } else {
+//           print('  - data is an empty list.');
+//         }
+//       }
+//       throw Exception("Failed to estimate shipping: Unexpected response format - ${response.body}");
+//     }
+//   }
+///////////14 june
 
-    if (customerToken == null || customerToken.isEmpty) {
-      throw Exception("User not logged in for estimating shipping");
-    }
-
-    final shippingUrl =
-        "https://stage.aashniandco.com/rest/V1/aashni/shipping-rate/$countryId/0?weight=$cartWeight";
-
-    print('--- ShippingRepository: Attempting to estimate shipping ---');
-    print('Country ID: $countryId, Region ID (hardcoded): $regionId, Cart Weight: $cartWeight');
-    print('Request URL>>>>>: $shippingUrl');
-    print('Customer Token: $customerToken');
-    print('-------------------------------------------------------------');
-
-    final response = await this.ioClient.get( // Use this.ioClient
-      Uri.parse(shippingUrl),
-      headers: {
-        'Authorization': 'Bearer $customerToken',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    print('--- ShippingRepository: API Response for shipping estimate ---');
-    print('Status Code: ${response.statusCode}');
-    print('Response Body: ${response.body}'); // Log the full body for shipping estimate
-    print('----------------------------------------------------------');
-
-    if (response.statusCode != 200) {
-      print('ShippingRepository: Estimate shipping API call failed with status code ${response.statusCode}.');
-      throw Exception("Failed to estimate shipping (HTTP ${response.statusCode}): ${response.body}");
-    }
-
-    final data = jsonDecode(response.body);
-
-    if (data is List && data.length >= 2 && data[0] == true) {
-      final price = data[1];
-      print('ShippingRepository: Price from API before conversion: $price (Type: ${price.runtimeType})');
-      if (price != null) {
-        if (price is num) {
-          return price.toDouble();
-        } else if (price is String) {
-          try {
-            return double.parse(price);
-          } catch (e) {
-            print('ShippingRepository: Error parsing price string "$price" to double: $e');
-            throw Exception("Failed to estimate shipping: Invalid price format in response - ${response.body}");
-          }
-        } else {
-          throw Exception("Failed to estimate shipping: Price is of unexpected type ${price.runtimeType} - ${response.body}");
-        }
-      } else {
-        throw Exception("Failed to estimate shipping: Price from API is null - ${response.body}");
-      }
-    } else {
-      print('ShippingRepository: Condition for successful parsing FAILED for shipping estimate.');
-      print('  - data is List: ${data is List}');
-      if (data is List) {
-        print('  - data.length >= 2: ${data.length >= 2}');
-        if (data.isNotEmpty) {
-          print('  - data[0] == true: ${data[0] == true} (Actual data[0]: ${data[0]}, Type: ${data[0].runtimeType})');
-        } else {
-          print('  - data is an empty list.');
-        }
-      }
-      throw Exception("Failed to estimate shipping: Unexpected response format - ${response.body}");
-    }
-  }
 
 
-  Future<List<Map<String, dynamic>>> fetchAvailableShippingMethods({
+  // Future<List<Map<String, dynamic>>> fetchAvailableShippingMethods({
+  //   required String countryId,
+  //   required String regionId,
+  //   required String regionCode,
+  //   required String regionName,
+  //   required String postcode,
+  //   required String city,
+  //   required String street,
+  //   required String firstname,
+  //   required String lastname,
+  //   required String telephone,
+  // }) async {
+  //   if (kDebugMode) {
+  //     print("--- ShippingRepository: Fetching available shipping methods ---");
+  //   }
+  //
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final customerToken = prefs.getString('user_token');
+  //   if (customerToken == null || customerToken.isEmpty) {
+  //     throw Exception("User not logged in");
+  //   }
+  //
+  //   // Construct the payload for the API
+  //   final payload = {
+  //     "address": {
+  //       "region": regionName,
+  //       "region_id": int.tryParse(regionId) ?? 0,
+  //       "region_code": regionCode,
+  //       "country_id": countryId,
+  //       "postcode": postcode,
+  //       "city": city,
+  //       "street": [street],
+  //       "firstname": firstname,
+  //       "lastname": lastname,
+  //       "telephone": telephone,
+  //     }
+  //   };
+  //
+  //   if (kDebugMode) {
+  //     print("Request Payload: ${json.encode(payload)}");
+  //   }
+  //
+  //   final url = Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods');
+  //   final response = await this.ioClient.post(
+  //     url,
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       'Authorization': 'Bearer $customerToken',
+  //     },
+  //     body: json.encode(payload),
+  //   );
+  //
+  //   if (kDebugMode) {
+  //     print("API Response Status: ${response.statusCode}");
+  //     print("API Response Body: ${response.body}");
+  //   }
+  //
+  //   if (response.statusCode == 200) {
+  //     final List<dynamic> responseData = json.decode(response.body);
+  //     // Convert the list of dynamic to a list of maps
+  //     return responseData.map((item) => item as Map<String, dynamic>).toList();
+  //   } else {
+  //     final errorBody = json.decode(response.body);
+  //     throw Exception(errorBody['message'] ?? "Failed to fetch shipping methods.");
+  //   }
+  // }
+
+  // 🔄 REPLACE your old estimateShipping method with this one.
+// This method now returns a List of ShippingMethod objects.
+  Future<List<ShippingMethod>> fetchAvailableShippingMethods({
     required String countryId,
     required String regionId,
-    required String regionCode,
-    required String regionName,
     required String postcode,
-    required String city,
-    required String street,
-    required String firstname,
-    required String lastname,
-    required String telephone,
   }) async {
-    if (kDebugMode) {
-      print("--- ShippingRepository: Fetching available shipping methods ---");
-    }
-
     final prefs = await SharedPreferences.getInstance();
     final customerToken = prefs.getString('user_token');
+
     if (customerToken == null || customerToken.isEmpty) {
       throw Exception("User not logged in");
     }
 
-    // Construct the payload for the API
+    // This is the standard Magento endpoint
+    final url = Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods');
+
+    // The payload requires the shipping address
     final payload = {
       "address": {
-        "region": regionName,
-        "region_id": int.tryParse(regionId) ?? 0,
-        "region_code": regionCode,
         "country_id": countryId,
-        "postcode": postcode,
-        "city": city,
-        "street": [street],
-        "firstname": firstname,
-        "lastname": lastname,
-        "telephone": telephone,
+        "region_id": int.tryParse(regionId) ?? 0,
+        "postcode": postcode.isNotEmpty ? postcode : "00000", // Use a placeholder if empty
+        // You can add more address fields here if needed by other shipping methods
       }
     };
 
-    if (kDebugMode) {
-      print("Request Payload: ${json.encode(payload)}");
-    }
+    HttpClient httpClient = HttpClient()..badCertificateCallback = (cert, host, port) => true;
+    IOClient ioClient = IOClient(httpClient);
 
-    final url = Uri.parse('https://stage.aashniandco.com/rest/V1/carts/mine/estimate-shipping-methods');
-    final response = await this.ioClient.post(
+    final response = await ioClient.post(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -488,23 +545,21 @@ print("called>>>>>>>>>>>");
       body: json.encode(payload),
     );
 
-    if (kDebugMode) {
-      print("API Response Status: ${response.statusCode}");
-      print("API Response Body: ${response.body}");
-    }
+    print("Standard Shipping API Response: ${response.body}");
 
     if (response.statusCode == 200) {
       final List<dynamic> responseData = json.decode(response.body);
-      // Convert the list of dynamic to a list of maps
-      return responseData.map((item) => item as Map<String, dynamic>).toList();
+      // Map the JSON response to your new ShippingMethod model
+      return responseData.map((data) => ShippingMethod.fromJson(data)).toList();
     } else {
       final errorBody = json.decode(response.body);
       throw Exception(errorBody['message'] ?? "Failed to fetch shipping methods.");
     }
   }
 
+// ✅ REPLACE your repository method with this corrected
 
-// ✅ REPLACE your repository method with this corrected version
+
 
   Future<Map<String, dynamic>> submitShippingInformation(SubmitShippingInfo event) async {
     if (kDebugMode) {

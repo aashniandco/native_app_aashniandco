@@ -122,6 +122,82 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
   // }
 
 
+//19 june
+
+  // Future<void> _onFetchNewIn(FetchNewIn event, Emitter<NewInState> emit) async {
+  //   final int page = event.page;
+  //   final int pageSize = 10;
+  //   final int start = page * pageSize;
+  //
+  //   try {
+  //     HttpClient httpClient = HttpClient();
+  //     httpClient.badCertificateCallback = (cert, host, port) => true;
+  //     IOClient ioClient = IOClient(httpClient);
+  //
+  //     final uri = Uri.parse(ApiConstants.url);
+  //     final Map<String, dynamic> body = {
+  //       "queryParams": {
+  //         "query": 'categories-store-1_name:("new in")',
+  //         "params": {
+  //           "fl": "designer_name,actual_price_1,prod_name,prod_en_id,prod_sku,prod_small_img,prod_thumb_img,short_desc,categories-store-1_name,size_name,prod_desc,child_delivery_time",
+  //           "rows": "$pageSize",
+  //           "start": "$start",
+  //           "sort": "prod_en_id desc"
+  //         }
+  //       }
+  //     };
+  //
+  //     final response = await ioClient.post(
+  //       uri,
+  //       headers: {"Content-Type": "application/json"},
+  //       body: jsonEncode(body),
+  //     );
+  //
+  //     if (response.statusCode == 200) {
+  //       final decoded = jsonDecode(response.body);
+  //       print("Decoded response: $decoded"); // Debug: See actual structure
+  //
+  //       List<dynamic> docs = [];
+  //
+  //       // Safely detect response format
+  //       if (decoded is List && decoded.length > 1 && decoded[1] is Map) {
+  //         docs = decoded[1]['docs'] ?? [];
+  //       } else if (decoded is Map && decoded['response'] is Map) {
+  //         docs = decoded['response']['docs'] ?? [];
+  //       } else {
+  //         emit(NewInError("Unexpected response format"));
+  //         return;
+  //       }
+  //
+  //       final List<Product> products = docs.map((doc) => Product.fromJson(doc)).toList();
+  //
+  //       final currentState = state;
+  //       if (currentState is NewInLoaded) {
+  //         final List<Product> allProducts = [
+  //           ...currentState.products,
+  //           ...products
+  //         ];
+  //         emit(NewInLoaded(
+  //           products: allProducts,
+  //           hasReachedEnd: products.length < pageSize,
+  //         ));
+  //       } else {
+  //         emit(NewInLoaded(
+  //           products: products,
+  //           hasReachedEnd: products.length < pageSize,
+  //         ));
+  //       }
+  //     } else {
+  //       emit(NewInError("Failed with status: ${response.statusCode}"));
+  //     }
+  //   } on SocketException {
+  //     emit(NewInError("No internet connection"));
+  //   } catch (e) {
+  //     emit(NewInError("Error: $e"));
+  //   }
+  // }
+
+
   Future<void> _onFetchNewIn(
       FetchNewIn event, Emitter<NewInState> emit) async {
     emit(NewInLoading());
@@ -138,7 +214,8 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
 
       final Map<String, dynamic> body = {
         "queryParams": {
-          "query": 'categories-store-1_name:("$subcategory")',
+          // "query": 'categories-store-1_name:("$subcategory")',
+          "query": "categories-store-1_id:(1372)",
           "params": {
             "fl": "designer_name,actual_price_1,prod_name,prod_en_id,prod_sku,prod_small_img,prod_thumb_img,short_desc,categories-store-1_name,size_name,prod_desc,child_delivery_time",
             "rows": "40000",
@@ -151,15 +228,21 @@ class NewInBloc extends Bloc<NewInEvent,NewInState>{
         uri,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(body),
+
       );
+      // ✅ Print full raw response
+      print("Raw Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final secondItem = decoded[1];
         final docs = secondItem['docs'];
 
+
+
         if (docs is List) {
           final products = docs.map((doc) => Product.fromJson(doc)).toList();
+          print ("Response>>New $products");
           emit(NewInLoaded(products: products));
         } else {
           emit(NewInError("Invalid docs format"));

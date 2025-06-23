@@ -64,3 +64,9 @@ class ShippingError extends ShippingState {
   final String message;
   ShippingError(this.message);
 }
+class ShippingMethodsLoading extends ShippingState {}
+// 🔄 REPLACE ShippingRateLoaded state with this
+class ShippingMethodsLoaded extends ShippingState {
+  final List<ShippingMethod> methods;
+  ShippingMethodsLoaded(this.methods);
+}

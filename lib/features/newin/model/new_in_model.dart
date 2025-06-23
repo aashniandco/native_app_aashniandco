@@ -112,6 +112,8 @@ class Product {
     );
   }
 
+  get prodEnId => null;
+
   Map<String, dynamic> toJson() {
     return {
       'designer_name': designerName,

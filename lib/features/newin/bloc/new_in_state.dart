@@ -36,8 +36,9 @@ class NewInLoading extends NewInState {}
 
 class NewInLoaded extends NewInState {
   final List<Product> products;
+  final bool hasReachedEnd;
 
-  NewInLoaded({required this.products});
+  NewInLoaded({required this.products,this.hasReachedEnd = false});
 }
 
 class NewInError extends NewInState {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +14,41 @@ class CartRepository {
   );
 
 
+  Future<void> setCustomShippingPrice(double shippingPrice) async {
+    if (kDebugMode) {
+      print("--- ShippingRepository: Calling CUSTOM API to set shipping price: $shippingPrice ---");
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final customerToken = prefs.getString('user_token');
+    if (customerToken == null || customerToken.isEmpty) {
+      throw Exception("User not logged in for setting custom shipping price");
+    }
+
+    // This is the NEW custom API URL you defined in webapi.xml
+    final url = Uri.parse('https://stage.aashniandco.com/rest/V1/aashni/carts/mine/set-shipping-price');
+
+    final response = await this.ioClient.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $customerToken',
+      },
+      // The body just contains the price
+      body: json.encode({"shippingPrice": shippingPrice}),
+    );
+
+    if (kDebugMode) {
+      print("Custom API Response Status: ${response.statusCode}");
+      print("Custom API Response Body: ${response.body}");
+    }
+
+    if (response.statusCode != 200) {
+      // It failed, throw an exception
+      final errorBody = json.decode(response.body);
+      throw Exception("Failed to set custom shipping price: ${errorBody['message']}");
+    }
+  }
 
   Future<List<dynamic>> fetchCartItems() async {
     final prefs = await SharedPreferences.getInstance();

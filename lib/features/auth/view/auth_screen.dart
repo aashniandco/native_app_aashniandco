@@ -135,7 +135,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 120),
+                    padding: const EdgeInsets.only(top:10,right: 100),
                     child: Text(
                       'Welcome, $_firstName $_lastName !!!',
                       style: const TextStyle(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
@@ -249,33 +249,42 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
             BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: "Wish List"),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Accounts"),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Login"),
           ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                      (route) => false,
-                );
-                break;
-              case 1:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const WishlistScreen()),
-                      (route) => false,
-                );
-                break;
-              case 2:
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) =>  LoginScreen1()),
-                      (route) => false,
-                );
-                break;
+            onTap: (index) async {
+              final prefs = await SharedPreferences.getInstance();
+              final isLoggedIn = prefs.getString('user_token') != null;
+
+              switch (index) {
+                case 0:
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                        (route) => false,
+                  );
+                  break;
+                case 1:
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WishlistScreen()),
+                        (route) => false,
+                  );
+                  break;
+                case 2:
+                  if (isLoggedIn) {
+                    _tabController.animateTo(0); // Stay in AuthScreen
+                    _tabBloc.setTab(0);
+                  } else {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => LoginScreen1()),
+                          (route) => false,
+                    );
+                  }
+                  break;
+              }
             }
-          },
+
         ),
       ),
     );

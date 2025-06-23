@@ -135,6 +135,6 @@ class ShippingMethod {
       available: json['available'] ?? false,
     );
   }
-
+  String get id => '${carrierCode}_${methodCode}';
   String get displayName => '$carrierTitle - $methodTitle';
 }
