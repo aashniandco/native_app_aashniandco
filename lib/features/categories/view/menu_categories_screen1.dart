@@ -27,6 +27,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/category_products_bloc.dart';
 import '../bloc/category_products_event.dart';
 import '../bloc/category_products_state.dart';
+import '../repository/api_service.dart';
 
 // 1. Converted to a StatefulWidget to manage sorting state
 class MenuCategoriesScreen extends StatefulWidget {
@@ -45,6 +46,12 @@ class _MenuCategoriesScreenState extends State<MenuCategoriesScreen> {
   // 2. State variables for sorting
   String selectedSort = "Latest";
   List<Product> sortedProducts = [];
+
+  // ✅ NEW STATE VARIABLES FOR ASYNC DATA
+  final ApiService _apiService = ApiService();
+  late Future<Map<String, dynamic>> _categoryMetadataFuture;
+
+
 
   // 3. Sorting logic adapted from your example
   // 3. Sorting logic adapted from your reference
@@ -230,6 +237,13 @@ class _MenuCategoriesScreenState extends State<MenuCategoriesScreen> {
 //   }
 
   @override
+  void initState() {
+    super.initState();
+    // Start the metadata fetch when the screen loads
+    _categoryMetadataFuture = _apiService.fetchCategoryMetadataByName(widget.categoryName);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -404,19 +418,47 @@ class _MenuCategoriesScreenState extends State<MenuCategoriesScreen> {
       ),
 
       // Floating Filter Button from your example
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => FilterBottomSheetCategories(categoryName: widget.categoryName),
-            // builder: (context) => const  FilterBottomSheet_Categories(),
+      floatingActionButton: FutureBuilder<Map<String, dynamic>>(
+        future: _categoryMetadataFuture,
+        builder: (context, snapshot) {
+          // If data is loading or has an error, show a disabled button
+          if (snapshot.connectionState != ConnectionState.done || snapshot.hasError) {
+            return FloatingActionButton(
+              onPressed: null, // Disabled
+              backgroundColor: Colors.grey,
+              child: snapshot.connectionState == ConnectionState.waiting
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Icon(Icons.filter_list_alt, color: Colors.black54),
+            );
+          }
+
+          // Data is loaded, we can get the ID!
+          final categoryData = snapshot.data!;
+          // final String categoryId = categoryData['cat_id']?.toString() ?? '';
+          final String parentCategoryId = categoryData['pare_cat_id']?.toString() ?? '';
+          // Show the enabled button
+          return FloatingActionButton(
+            onPressed: () {
+              if (parentCategoryId.isNotEmpty) {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => FilterBottomSheetCategories(
+                    // Pass the dynamically fetched ID
+                    categoryId: parentCategoryId,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Filter not available for this category.")),
+                );
+              }
+            },
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.filter_list_alt, color: Colors.black),
           );
-          print("Filter button pressed");
         },
-        backgroundColor: Colors.white,
-        child: const Icon(Icons.filter_list_alt, color: Colors.black),
       ),
     );
   }

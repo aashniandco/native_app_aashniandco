@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
     <key>NSCameraUsageDescription</key>
     <string>Scan your card to add it automatically</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -52,5 +54,19 @@
     	<array>
     	    <string>mailto</string>
     	</array>
+
+    	<key>NSAppTransportSecurity</key>
+        <dict>
+            <key>NSExceptionDomains</key>
+            <dict>
+                <key>stage.aashniandco.com</key>
+                <dict>
+                    <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                    <true/>
+                    <key>NSIncludesSubdomains</key>
+                    <true/>
+                </dict>
+            </dict>
+        </dict>
 </dict>
 </plist>
